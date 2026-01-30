@@ -1,0 +1,18 @@
+# Environments
+venv/
+.env
+
+# MLflow / Database
+mlruns/
+mlflow.db
+
+# Binaries / Models
+*.pkl
+
+# Data
+data/housing_data.csv
+test_data.csv
+
+# System
+.DS_Store
+__pycache__/
