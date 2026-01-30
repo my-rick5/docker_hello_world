@@ -70,3 +70,6 @@ with mlflow.start_run():
         pickle.dump(model, f)
 
     print(f"Model trained with accuracy: {accuracy}")
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=8080)
