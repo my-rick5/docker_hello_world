@@ -1,37 +1,67 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>ML House Predictor</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Model Service</title>
     <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-        input { padding: 10px; border-radius: 5px; border: 1px solid #ccc; }
-        button { padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        #result { margin-top: 20px; font-weight: bold; font-size: 1.2em; }
+        body { font-family: sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; line-height: 1.6; }
+        .card { border: 1px solid #ddd; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .success-box { display: none; margin-top: 20px; padding: 15px; background: #e7f3ef; border-left: 5px solid #2ecc71; color: #27ae60; }
+        button { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #2980b9; }
+        input[type="file"] { margin-bottom: 15px; }
     </style>
 </head>
 <body>
-    <h1>House Price Predictor</h1>
-    <p>Enter Square Footage:</p>
-    <input type="number" id="sqft" placeholder="e.g. 2500">
-    <button onclick="getPrediction()">Predict</button>
-    <div id="result"></div>
+    <div class="card">
+        <h2>Housing Model Training</h2>
+        <p>Upload your <strong>housing_data.csv</strong> to train the model and archive data to GCP.</p>
+        
+        <form id="uploadForm">
+            <input type="file" name="file" accept=".csv" required><br>
+            <button type="submit" id="submitBtn">Train & Upload</button>
+        </form>
+
+        <div id="resultBox" class="success-box">
+            <strong>Training Complete!</strong>
+            <p id="accuracyResult"></p>
+            <p><small>View your data in the Google Cloud Console bucket.</small></p>
+        </div>
+    </div>
 
     <script>
-        async function getPrediction() {
-            const sqft = document.getElementById('sqft').value;
-            const response = await fetch('/predict', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sqft: parseFloat(sqft) })
-            });
-            const data = await response.json();
-            document.getElementById('result').innerText = "Prediction: " + data.prediction;
-        }
+        const form = document.getElementById('uploadForm');
+        const btn = document.getElementById('submitBtn');
+        const resultBox = document.getElementById('resultBox');
+        const accText = document.getElementById('accuracyResult');
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            btn.innerText = "Processing...";
+            btn.disabled = true;
+
+            const formData = new FormData(form);
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    accText.innerText = `Model Accuracy: ${(data.accuracy * 100).toFixed(2)}%`;
+                    resultBox.style.display = 'block';
+                } else {
+                    alert("Error: " + data);
+                }
+            } catch (err) {
+                alert("Upload failed. Check console.");
+            } finally {
+                btn.innerText = "Train & Upload";
+                btn.disabled = false;
+            }
+        };
     </script>
 </body>
-<h3>Upload New Training Data</h3>
-<form action="/upload" method="post" enctype="multipart/form-data">
-  <input type="file" name="file" accept=".csv">
-  <input type="submit" value="Upload CSV">
-</form>
 </html>
