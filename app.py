@@ -6,6 +6,7 @@ import mlflow.sklearn
 from flask import Flask, request, render_template, redirect
 import os
 import pandas as pd
+from google.cloud import storage
 
 
 app = Flask(__name__)
@@ -17,29 +18,37 @@ def index():
     return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
+def upload_to_gcs(file_stream, filename):
+    # GCP Configuration - usually set via Env Vars
+    BUCKET_NAME = os.getenv("GCP_BUCKET_NAME", "your-unique-bucket-name")
+    
+    # Initialize the client
+    # Note: When running in GCP (Cloud Run/GKE), credentials are handled automatically
+    client = storage.Client()
+    bucket = client.bucket(BUCKET_NAME)
+    blob = bucket.blob(f"uploads/{filename}")
+
+    # Stream the file directly from the Flask request to GCS
+    blob.upload_from_string(
+        file_stream.read(),
+        content_type=file_stream.content_type
+    )
+    return blob.public_url
+
+# Inside your Flask route:
+@app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
         return "No file part", 400
-    file = request.files['file']
-    if file.filename == '':
-        return "No selected file", 400
     
-    if file and file.filename.endswith('.csv'):
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], 'housing_data.csv')
-        
-        # Simple Deduplication Logic: 
-        # If the file exists, we merge and drop duplicates
-        if os.path.exists(filepath):
-            new_data = pd.read_csv(file)
-            old_data = pd.read_csv(filepath)
-            # Assuming 'id' is your pkey
-            combined = pd.concat([old_data, new_data]).drop_duplicates(subset=['id'], keep='last')
-            combined.to_csv(filepath, index=False)
-        else:
-            file.save(filepath)
-            
-        return redirect('/')
-    return "Invalid file type. Please upload a CSV.", 400
+    file = request.files['file']
+    
+    # NEW: Upload to Cloud instead of local 'data/' folder
+    try:
+        gcs_url = upload_to_gcs(file, file.filename)
+        return f"File uploaded successfully to {gcs_url}", 200
+    except Exception as e:
+        return f"GCP Upload Failed: {str(e)}", 500
 
 # 1. Start the MLflow experiment
 mlflow.set_experiment("House_Price_Prediction")
