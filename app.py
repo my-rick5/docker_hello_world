@@ -42,13 +42,15 @@ def upload_file():
         return "No file part", 400
     
     file = request.files['file']
-    
-    # NEW: Upload to Cloud instead of local 'data/' folder
+    if file.filename == '':
+        return "No selected file", 400
+
     try:
-        gcs_url = upload_to_gcs(file, file.filename)
-        return f"File uploaded successfully to {gcs_url}", 200
+        # Pass the file data and the name to your helper function
+        upload_to_gcs(file.read(), file.filename) # ✅ Passing the 2 required arguments
+        return "File successfully uploaded to GCP!", 200
     except Exception as e:
-        return f"GCP Upload Failed: {str(e)}", 500
+        return f"Error: {e}", 500
 
 # 1. Start the MLflow experiment
 mlflow.set_experiment("House_Price_Prediction")
