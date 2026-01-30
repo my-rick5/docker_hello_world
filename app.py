@@ -1,41 +1,36 @@
-import pandas as pd
-from sklearn.linear_model import LogisticRegression
+import os
 import pickle
+import pandas as pd
 import mlflow
 import mlflow.sklearn
-from flask import Flask, request, render_template, redirect
-import os
-import pandas as pd
+from flask import Flask, request, render_template
+from sklearn.linear_model import LogisticRegression
 from google.cloud import storage
 
-
 app = Flask(__name__)
-UPLOAD_FOLDER = 'data'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/upload', methods=['POST'])
-def upload_to_gcs(file_stream, filename):
-    # GCP Configuration - usually set via Env Vars
-    BUCKET_NAME = os.getenv("GCP_BUCKET_NAME", "your-unique-bucket-name")
+# --- 1. HELPER FUNCTION (Not a route) ---
+def upload_to_gcs(file_bytes, filename, content_type):
+    BUCKET_NAME = os.getenv("GCP_BUCKET_NAME", "housing-data-for-testing")
     
-    # Initialize the client
-    # Note: When running in GCP (Cloud Run/GKE), credentials are handled automatically
+    # Initialize the client (Uses GOOGLE_APPLICATION_CREDENTIALS env var)
     client = storage.Client()
     bucket = client.bucket(BUCKET_NAME)
     blob = bucket.blob(f"uploads/{filename}")
 
-    # Stream the file directly from the Flask request to GCS
+    # Upload the bytes we already read from the request
     blob.upload_from_string(
-        file_stream.read(),
-        content_type=file_stream.content_type
+        file_bytes,
+        content_type=content_type
     )
+    print(f"✅ Successfully uploaded {filename} to {BUCKET_NAME}")
     return blob.public_url
 
-# Inside your Flask route:
+# --- 2. THE ACTUAL FLASK ROUTE ---
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -46,41 +41,42 @@ def upload_file():
         return "No selected file", 400
 
     try:
-        # Pass the file data and the name to your helper function
-        upload_to_gcs(file.read(), file.filename) # ✅ Passing the 2 required arguments
-        return "File successfully uploaded to GCP!", 200
+        # Read the file data into memory once
+        # This is important because reading the stream twice would result in empty data
+        file_bytes = file.read()
+        content_type = file.content_type
+        
+        # Call our helper function
+        upload_to_gcs(file_bytes, file.filename, content_type)
+        
+        return f"Success! '{file.filename}' is now in Google Cloud Storage.", 200
     except Exception as e:
+        print(f"❌ Error: {e}")
         return f"Error: {e}", 500
 
-# 1. Start the MLflow experiment
+# --- 3. MLFLOW TRAINING (Runs once when app starts) ---
 mlflow.set_experiment("House_Price_Prediction")
 
 with mlflow.start_run():
-    # Dummy data
     data = {'sqft': [500, 1000, 1500, 2000, 2500, 3000],
             'is_expensive': [0, 0, 0, 1, 1, 1]}
     df = pd.DataFrame(data)
 
-    # Hyperparameters (the "settings" you chose)
-    c_value = .01
+    c_value = 0.01
     mlflow.log_param("C_regularization", c_value)
 
-    # 2. Train model
     model = LogisticRegression(C=c_value)
     model.fit(df[['sqft']], df['is_expensive'])
 
-    # 3. Log the "Metric" (how good is it?)
     accuracy = model.score(df[['sqft']], df['is_expensive'])
     mlflow.log_metric("accuracy", accuracy)
 
-    # 4. Save the model to MLflow (The "Universal Adapter")
     mlflow.sklearn.log_model(model, "model")
 
-    # Also save as pickle for your current Flask app
     with open('model.pkl', 'wb') as f:
         pickle.dump(model, f)
 
-    print(f"Model trained with accuracy: {accuracy}")
+    print(f"✅ Model trained with accuracy: {accuracy}")
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8080)
