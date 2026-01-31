@@ -3,74 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ML Data Validator & Trainer</title>
+    <title>GCS Data Inventory</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 50px auto; padding: 20px; background-color: #f4f7f6; color: #333; }
-        .card { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h2 { margin-top: 0; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 1000px; margin: 50px auto; background: #f4f7f6; color: #333; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { color: #2c3e50; margin-top: 0; }
         
-        .upload-section { margin: 25px 0; padding: 20px; border: 2px dashed #bdc3c7; border-radius: 8px; text-align: center; }
-        .upload-section:hover { border-color: #3498db; background-color: #f9fbfc; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th, td { text-align: left; padding: 15px; border-bottom: 1px solid #eee; }
+        th { background: #3498db; color: white; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; }
+        tr:hover { background: #f9fbff; }
         
-        button { background: #3498db; color: white; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.3s; }
-        button:hover { background: #2980b9; }
-        button:disabled { background: #95a5a6; cursor: not-allowed; }
+        .back-link { display: inline-block; margin-bottom: 20px; text-decoration: none; color: #3498db; font-weight: bold; }
+        .back-link:hover { text-decoration: underline; }
 
-        /* Status Boxes */
-        #statusBox { display: none; margin-top: 25px; padding: 15px; border-radius: 6px; border-left: 6px solid; }
-        .success { background-color: #d4edda; color: #155724; border-color: #28a745; }
-        .error { background-color: #f8d7da; color: #721c24; border-color: #dc3545; }
+        .btn-delete {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background 0.2s;
+        }
+        .btn-delete:hover { background: #c0392b; }
         
-        code { background: rgba(0,0,0,0.05); padding: 2px 4px; border-radius: 4px; font-family: monospace; }
+        code { background: #f0f0f0; padding: 2px 5px; border-radius: 4px; font-family: monospace; }
+        .badge { background: #34495e; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>Housing Model Pipeline</h2>
-        <p>Upload a CSV with <code>sqft</code> and <code>is_expensive</code>. The system will validate data integrity before training the "Collective Memory".</p>
+        <a href="/" class="back-link">← Back to Trainer</a>
+        <h2>GCS Collective Memory <span class="badge">Archive</span></h2>
+        <p>Managed Bucket: <code>{{ bucket_name }}</code></p>
         
-        <form id="uploadForm" class="upload-section">
-            <input type="file" name="file" accept=".csv" required><br><br>
-            <button type="submit" id="submitBtn">Validate & Train</button>
-        </form>
-
-        <div id="statusBox">
-            <strong id="statusTitle"></strong>
-            <p id="statusMessage"></p>
-        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Filename</th>
+                    <th>Size</th>
+                    <th>Uploaded (UTC)</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for file in files %}
+                <tr>
+                    <td><code>{{ file.name }}</code></td>
+                    <td>{{ file.size }}</td>
+                    <td>{{ file.updated }}</td>
+                    <td>
+                        <form action="/delete/{{ file.name }}" method="POST" onsubmit="return confirm('Are you sure? This file will be removed from the model\'s memory on the next training run.');">
+                            <button type="submit" class="btn-delete">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not files %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: #95a5a6; padding: 40px;">No files found in the collective memory.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
     </div>
-
-    <script>
-        const form = document.getElementById('uploadForm');
-        const btn = document.getElementById('submitBtn');
-        const statusBox = document.getElementById('statusBox');
-        const statusTitle = document.getElementById('statusTitle');
-        const statusMessage = document.getElementById('statusMessage');
-
-        form.onsubmit = async (e) => {
-            e.preventDefault();
-            
-            // UI Reset
-            btn.innerText = "Cleaning & Training...";
-            btn.disabled = true;
-            statusBox.style.display = 'none';
-            statusBox.className = '';
-
-            const formData = new FormData(form);
-            try {
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
-
-                statusBox.style.display = 'block';
-                
-                if (response.ok) {
-                    // SUCCESS STATE
-                    statusBox.classList.add('success');
-                    statusTitle.innerText = "✅ Training Success";
-                    statusMessage.innerHTML = `${data.message}<br><strong>Current Accuracy:</strong> ${(data.accuracy * 100).toFixed(2)}%`;
-                } else {
-                    // ERROR STATE (Validation/System)
-                    statusBox
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GCS Data Inventory</title>
+    <style>
+        body { font-family: sans-serif; max-width: 900px; margin: 50px auto; background: #f4f7f6; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+        th { background: #3498db; color: white; }
+        tr:hover { background: #f9f9f9; }
+        .back-link { display: inline-block; margin-bottom: 20px; text-decoration: none; color: #3498db; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <a href="/" class="back-link">← Back to Trainer</a>
+        <h2>GCS Collective Memory: <code>{{ bucket_name }}</code></h2>
+        <p>The model is currently trained on the combined data from the following files:</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Filename</th>
+                    <th>Size</th>
+                    <th>Upload Date (UTC)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for file in files %}
+                <tr>
+                    <td><code>{{ file.name }}</code></td>
+                    <td>{{ file.size }}</td>
+                    <td>{{ file.updated }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
