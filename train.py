@@ -1,60 +1,69 @@
-import pandas as pd
-from sklearn.linear_model import LogisticRegression
+import os
+import io
 import pickle
+import pandas as pd
 import mlflow
 import mlflow.sklearn
-import os
+from google.cloud import storage
+from sklearn.linear_model import LogisticRegression
 
-# 1. Setup MLflow Experiment
-# This organizes your runs under one name in the UI
+# --- 1. CONFIGURATION ---
+BUCKET_NAME = os.getenv("GCP_BUCKET_NAME", "housing-data-for-testing")
+# This ensures MLflow artifacts (models/plots) go to GCS
+ARTIFACT_URI = f"gs://{BUCKET_NAME}/mlflow-artifacts"
+
+# Setup MLflow
+mlflow.set_tracking_uri("sqlite:///mlflow.db")
 mlflow.set_experiment("House_Price_Prediction")
-mlflow.set_tracking_uri("sqlite:///mlflow.db") 
 
 def train_model():
-    filepath = 'data/housing_data.csv'
+    # --- 2. GCS CLIENT SETUP ---
+    client = storage.Client()
+    bucket = client.bucket(BUCKET_NAME)
     
-    if not os.path.exists(filepath):
-        print("No training data found in /data. Please upload a CSV first.")
+    # --- 3. PULL DATA FROM GCS ---
+    # Looking for the file your app.py uploads
+    data_blob = bucket.blob("uploads/test_data.csv")
+    
+    if not data_blob.exists():
+        print(f"No training data found in GCS: gs://{BUCKET_NAME}/uploads/test_data.csv")
         return
 
-    df = pd.read_csv(filepath)
+    print("Downloading training data from GCS...")
+    data_bytes = data_blob.download_as_bytes()
+    df = pd.read_csv(io.BytesIO(data_bytes))
     
-    with mlflow.start_run():
+    # --- 4. MLFLOW RUN ---
+    with mlflow.start_run(artifact_location=ARTIFACT_URI):
         print("Starting training run...")
         
-        # 2. Simple Dataset
-        # 0 = Cheap, 1 = Expensive
-        data = {
-            'sqft': [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000],
-            'is_expensive': [0, 0, 0, 1, 1, 1, 1, 1]
-        }
-        df = pd.DataFrame(data)
-
-        # 3. Hyperparameters
-        # We log these so we can compare different settings later
-        c_param = .01
+        # Hyperparameters
+        c_param = 0.01
         mlflow.log_param("C_value", c_param)
         mlflow.log_param("model_type", "LogisticRegression")
 
-        # 4. Train the Model
+        # Train the Model
+        # Using the columns from your uploaded CSV
         model = LogisticRegression(C=c_param)
         model.fit(df[['sqft']], df['is_expensive'])
 
-        # 5. Log Metrics
-        # Accuracy is 1.0 if it predicts our dummy data perfectly
+        # Log Metrics
         accuracy = model.score(df[['sqft']], df['is_expensive'])
         mlflow.log_metric("accuracy", accuracy)
         print(f"Model Accuracy: {accuracy}")
 
-        # 6. Save Model to MLflow
-        # This allows MLflow to track the version of the model itself
+        # --- 5. CLOUD SAVING (No local files) ---
+        
+        # Save to MLflow Artifact Store (GCS)
         mlflow.sklearn.log_model(model, "house_model")
 
-        # 7. Export as Pickle (For your Flask App)
-        with open('model.pkl', 'wb') as f:
-            pickle.dump(model, f)
+        # Save specific pickle for the Flask app to GCS
+        print("Uploading model.pkl to GCS...")
+        model_blob = bucket.blob("models/model.pkl")
+        model_bytes = pickle.dumps(model)
+        model_blob.upload_from_string(model_bytes)
             
-        print("Model saved to model.pkl and logged to MLflow.")
+        print("Success! Model saved to GCS (models/model.pkl) and tracked in MLflow.")
 
 if __name__ == "__main__":
     train_model()
