@@ -1,19 +1,15 @@
-# Environments
+# Python environment
 venv/
-.env
+__pycache__/
+*.pyc
 
-# MLflow / Database
+# MLflow and Data (Private/Local files)
 mlruns/
 mlflow.db
+model.pkl
+data/
+*.csv
 
-# Binaries / Models
-*.pkl
-
-# Data
-data/housing_data.csv
-test_data.csv
-
-# System
+# OS files
 .DS_Store
-__pycache__/
-gcp-key.json
+.env
