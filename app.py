@@ -4,6 +4,8 @@ import pickle
 import pandas as pd
 from flask import Flask, request, render_template, redirect, url_for
 from google.cloud import storage
+import threading
+import subprocess
 
 app = Flask(__name__)
 
@@ -106,6 +108,30 @@ def predict():
     except Exception as e:
         app.logger.error(f"Prediction Error: {e}")
         return {"error": "Failed to process prediction. Ensure data is formatted correctly."}, 500
+
+@app.route('/trigger-train', methods=['POST'])
+def trigger_train():
+    """
+    Triggers the separate train.py script.
+    Using a thread prevents the web UI from freezing during training.
+    """
+    def run_training_script():
+        try:
+            app.logger.info("Background training started...")
+            # This calls your separate train.py file
+            result = subprocess.run(["python", "train.py"], capture_output=True, text=True)
+            if result.returncode == 0:
+                app.logger.info("Background training completed successfully.")
+            else:
+                app.logger.error(f"Training script failed: {result.stderr}")
+        except Exception as e:
+            app.logger.error(f"Error during background training: {e}")
+
+    # Fire and forget
+    thread = threading.Thread(target=run_training_script)
+    thread.start()
+
+    return {"status": "success", "message": "Training initiated in the cloud."}, 202
 
 # --- 3. TO BE MOVED TO LAMBDA/CONSOLE ---
 # train_with_memory()
