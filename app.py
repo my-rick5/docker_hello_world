@@ -103,4 +103,62 @@ def upload_file():
         
         return {
             "status": "success",
-            "message": f"Model updated! It now remembers {total_rows} rows
+            "message": f"Model updated! It now remembers {total_rows} rows of data.",
+            "accuracy": accuracy
+        }, 200
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}, 400
+    except Exception as e:
+        return {"status": "error", "message": f"Error processing file: {e}"}, 500
+
+@app.route('/dashboard')
+def dashboard():
+    try:
+        BUCKET_NAME = os.getenv("GCP_BUCKET_NAME", "housing-data-for-testing")
+        _, bucket = get_gcs_client()
+        blobs = bucket.list_blobs(prefix="uploads/")
+        
+        file_list = []
+        for blob in blobs:
+            if blob.name.endswith(".csv"):
+                file_list.append({
+                    "name": blob.name.replace("uploads/", ""),
+                    "full_path": blob.name,
+                    "size": f"{round(blob.size / 1024, 2)} KB",
+                    "updated": blob.updated.strftime('%Y-%m-%d %H:%M:%S')
+                })
+        file_list.sort(key=lambda x: x['updated'], reverse=True)
+        return render_template('dashboard.html', files=file_list, bucket_name=BUCKET_NAME)
+    except Exception as e:
+        return f"Error loading dashboard: {e}", 500
+
+@app.route('/delete/<path:filename>', methods=['POST'])
+def delete_file(filename):
+    try:
+        _, bucket = get_gcs_client()
+        blob = bucket.blob(f"uploads/{filename}")
+        blob.delete()
+        print(f"🗑️ Deleted {filename} from GCS.")
+        return redirect(url_for('dashboard'))
+    except Exception as e:
+        return f"Error deleting file: {e}", 500
+
+@app.route('/predict', methods=['GET'])
+def predict():
+    sqft = request.args.get('sqft')
+    if not sqft:
+        return "Missing 'sqft' parameter", 400
+    if not os.path.exists('model.pkl'):
+        return "No model trained yet. Please upload a CSV first.", 400
+
+    try:
+        with open('model.pkl', 'rb') as f:
+            model = pickle.load(f)
+        prediction = model.predict([[float(sqft)]])
+        result = "EXPENSIVE" if prediction[0] == 1 else "AFFORDABLE"
+        return {"sqft": sqft, "prediction": result}
+    except Exception as e:
+        return {"error": str(e)}, 500
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=8080) 
