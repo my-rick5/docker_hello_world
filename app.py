@@ -111,3 +111,8 @@ def predict():
 # train_with_memory()
 # clean_and_validate()
 # These functions should live in 'trainer.py' or 'console_interface.py'
+
+if __name__ == "__main__":
+    # 0.0.0.0 is MANDATORY for Docker
+    # port 8080 must match the internal part of your -p 5005:8080
+    app.run(host="0.0.0.0", port=8080)
