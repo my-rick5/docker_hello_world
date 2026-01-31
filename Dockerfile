@@ -1,10 +1,9 @@
 FROM python:3.9-slim
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
-RUN pip install flask
 WORKDIR /app
 
-
+		
 RUN mkdir -p data
 # Install dependencies first (Cached Layer)
 COPY requirements.txt .
