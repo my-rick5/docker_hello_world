@@ -1,20 +1,16 @@
 FROM python:3.9-slim
-ENV DEBIAN_FRONTEND=noninteractive
+
+# Keep the OS lean
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
-		
-RUN mkdir -p data
-# Install dependencies first (Cached Layer)
+# Install dependencies first (this layer stays cached)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the model and app (Uncached Layer)
+# Copy only what's needed for the app
 COPY app.py .
 COPY templates/ ./templates/
 
-
 EXPOSE 8080
-
-
 CMD ["python", "app.py"]

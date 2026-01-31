@@ -1,0 +1,7 @@
+venv/
+.git/
+mlflow.db
+mlruns/
+*.pkl
+*.csv
+__pycache__/
