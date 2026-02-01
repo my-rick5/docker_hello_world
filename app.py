@@ -164,7 +164,7 @@ def download_file(filename):
         print(f"❌ Download failed: {e}")
         return f"Internal Error: {e}", 500
 
-@app.route('/promote/<version>', method=['POST'])
+@app.route('/promote/<version>', methods=['POST'])
 def promote_model(version):
     try:
         client = MlflowClient(tracking_uri="sqlite:///mlflow.db")
