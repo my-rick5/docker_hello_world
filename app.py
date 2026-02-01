@@ -79,9 +79,6 @@ def dashboard():
         model_versions = get_model_history()
         return render_template('dashboard.html', files=files, model_versions=model_versions)
         
-        # This MUST be inside the try block and indented correctly
-        return render_template('dashboard.html', files=files, model_versions=model_versions)
-        
     except Exception as e:
         print(f"❌ Dashboard Error: {e}")
         return f"Error: {e}", 500
