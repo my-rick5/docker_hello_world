@@ -14,8 +14,9 @@ spec:
     spec:
       containers:
       - name: hello-world
-        # Make sure this image tag is updated if you've pushed a newer version
-        image: gcr.io/dockerhelloworld-485819/hello-world-app:v9
+        # This matches your latest build
+        image: gcr.io/dockerhelloworld-485819/hello-world-app:v11
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
         env:
@@ -30,7 +31,8 @@ spec:
       volumes:
       - name: google-cloud-key
         secret:
-          secretName: gcs-key
+          # Changed from gcs-key to gcp-key to match your 'kubectl create' command
+          secretName: gcp-key
 ---
 apiVersion: v1
 kind: Service
@@ -43,4 +45,4 @@ spec:
   ports:
     - protocol: TCP
       port: 80
-      targetPort: 8080
+      targetPort: 8080  

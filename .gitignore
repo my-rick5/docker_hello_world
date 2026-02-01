@@ -1,16 +1,16 @@
-# Python environment
-venv/
-__pycache__/
-*.pyc
-
-# MLflow and Data (Private/Local files)
-mlruns/
-mlflow.db
-model.pkl
-data/
-*.csv
+# GCP Secrets
+*.json
 key.json
+
+# Python environments & cache
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Databases
+mlflow.db
 
 # OS files
 .DS_Store
-.env
