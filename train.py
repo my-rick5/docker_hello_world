@@ -6,25 +6,24 @@ import mlflow
 import mlflow.sklearn
 from google.cloud import storage
 from sklearn.linear_model import LogisticRegression
+from mlflow.tracking import MlflowClient
 
 # --- 1. CONFIGURATION ---
-# Silence Git warnings and set GCS credentials
 os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/var/secrets/google/key.json"
 
 BUCKET_NAME = os.getenv("GCP_BUCKET_NAME", "housing-data-for-testing")
 ARTIFACT_URI = f"gs://{BUCKET_NAME}/mlflow-artifacts"
+MODEL_NAME = "HousingPriceModel" # The name for the Registry
 
 # Setup MLflow Tracking
+# Note: In a shared K8s environment, you'd eventually point this to a central server
 mlflow.set_tracking_uri("sqlite:///mlflow.db")
 
-# FIX: Ensure the experiment exists with the correct GCS artifact location
 experiment_name = "House_Price_Prediction"
 try:
-    # Attempt to create experiment with GCS destination
     mlflow.create_experiment(experiment_name, artifact_location=ARTIFACT_URI)
 except Exception:
-    # If it exists, MLflow will use the location defined when it was first created
     mlflow.set_experiment(experiment_name)
 
 def train_model():
@@ -50,10 +49,8 @@ def train_model():
     df = pd.read_csv(io.BytesIO(data_bytes))
     
     # --- 4. MLFLOW RUN ---
-    with mlflow.start_run():
-        # Debugging: Print where MLflow thinks it is sending things
-        print(f"🔍 Active Run ID: {mlflow.active_run().info.run_id}", flush=True)
-        print(f"🔍 Artifact Destination: {mlflow.get_artifact_uri()}", flush=True)
+    with mlflow.start_run() as run:
+        print(f"🔍 Active Run ID: {run.info.run_id}", flush=True)
         print("🚀 Starting MLflow training run...", flush=True)
         
         # Hyperparameters
@@ -70,26 +67,32 @@ def train_model():
         mlflow.log_metric("accuracy", accuracy)
         print(f"📊 Model Accuracy: {accuracy}", flush=True)
 
-        # --- 5. CLOUD SAVING ---
+        # --- 5. LOGGING & REGISTRATION ---
         
-        # Save to MLflow Artifact Store (GCS)
-        print("📦 Logging model to MLflow/GCS...", flush=True)
+        # Log to MLflow Registry
+        print(f"📦 Registering model as '{MODEL_NAME}'...", flush=True)
         try:
-            mlflow.sklearn.log_model(model, "house_model")
-            print("✅ MLflow artifacts logged successfully.", flush=True)
+            # log_model and register_model_name handles versioning automatically
+            mlflow.sklearn.log_model(
+                sk_model=model, 
+                artifact_path="house_model",
+                registered_model_name=MODEL_NAME
+            )
+            print("✅ Model registered successfully in MLflow.", flush=True)
         except Exception as e:
-            print(f"⚠️ MLflow artifact logging failed: {e}", flush=True)
+            print(f"⚠️ Registration failed: {e}", flush=True)
 
-        # Save specific pickle for the Flask app to GCS
-        print("📤 Uploading model.pkl to GCS...", flush=True)
+        # Legacy Support: Save specific pickle for the Flask app to GCS
+        # (Optional: In a full MLOps setup, the Flask app would pull from MLflow)
+        print("📤 Uploading legacy model.pkl to GCS...", flush=True)
         model_blob = bucket.blob("models/model.pkl")
         model_bytes = pickle.dumps(model)
         
         try:
             model_blob.upload_from_string(model_bytes)
-            print("✅ Success! Model saved to GCS (models/model.pkl)", flush=True)
+            print("✅ Success! Legacy model saved to GCS.", flush=True)
         except Exception as e:
-            print(f"❌ Upload failed: {e}", flush=True)
+            print(f"❌ Legacy upload failed: {e}", flush=True)
 
 if __name__ == "__main__":
     train_model()

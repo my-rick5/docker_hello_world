@@ -4,6 +4,7 @@ import threading
 import subprocess
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
 from google.cloud import storage
+from mlflow.tracking import MlflowClient
 
 app = Flask(__name__)
 
@@ -19,6 +20,34 @@ def get_gcs_resource():
     client = storage.Client()
     bucket = client.bucket(BUCKET_NAME)
     return client, bucket
+
+# ---- Model History ---
+
+def get_model_history():
+    client = MlflowClient(tracking_uri="sqlite:///mlflow.db")
+    model_name = "HousingPriceModel"
+    
+    history = []
+    try:
+        # Get all versions of this model
+        versions = client.search_model_versions(f"name='{model_name}'")
+        
+        for v in versions:
+            # Fetch the run to get the accuracy metric
+            run = client.get_run(v.run_id)
+            accuracy = run.data.metrics.get("accuracy", "N/A")
+            
+            history.append({
+                "version": v.version,
+                "stage": v.current_stage,
+                "accuracy": round(accuracy, 4) if isinstance(accuracy, float) else accuracy,
+                "created": v.creation_timestamp # You can format this date
+            })
+    except Exception as e:
+        print(f"MLflow Fetch Error: {e}")
+        
+    return sorted(history, key=lambda x: int(x['version']), reverse=True)
+
 
 # --- Routes ---
 
@@ -40,7 +69,8 @@ def dashboard():
                 'size': f"{blob.size / 1024:.2f} KB",
                 'time': blob.updated.strftime('%Y-%m-%d %H:%M:%S')
             })
-        return render_template('dashboard.html', files=file_list)
+        model_versions = get_model_history()
+            return render_template('dashboard.html', files=files, model_versions=model_versions)
     except Exception as e:
         return f"Error: {e}", 500
 
@@ -125,6 +155,26 @@ def download_file(filename):
     except Exception as e:
         print(f"❌ Download failed: {e}")
         return f"Internal Error: {e}", 500
+
+@app.route('/promote/<version>', method=['POST'])
+def promote_model(version):
+    try:
+        client = MlflowClient(tracking_uri="sqlite:///mlflow.db")
+        model_name = "HousingPriceModel"
+        
+        # Transition the chosen version to 'Production'
+        # archive_existing_versions=True ensures only one model is 'Live' at a time
+        client.transition_model_version_stage(
+            name=model_name,
+            version=version,
+            stage="Production",
+            archive_existing_versions=True
+        )
+        
+        print(f"🚀 Model {model_name} v{version} is now LIVE.")
+        return jsonify({"status": "success", "message": f"v{version} promoted to Production"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == "__main__":
     # Crucial for GKE: Listen on 8080

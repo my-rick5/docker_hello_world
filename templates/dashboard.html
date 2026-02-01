@@ -12,6 +12,12 @@
         .btn-download:hover { text-decoration: underline; }
         .status-box { margin-top: 20px; padding: 15px; border-radius: 5px; display: none; }
         .train-section { background: #e8f4fd; padding: 20px; border-radius: 8px; border: 1px solid #3498db; margin-top: 30px; }
+        
+        .registry-section { background: #fffcf0; padding: 20px; border-radius: 8px; border: 1px solid #f1c40f; margin-top: 30px; }
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; text-transform: uppercase; border: 1px solid #ccc; }
+        .badge-prod { background: #27ae60; color: white; border-color: #1e8449; }
+        .btn-promote { background: #f1c40f; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold; }
+        .btn-promote:hover { background: #d4ac0d; }
     </style>
 </head>
 <body>
@@ -36,7 +42,6 @@
                 <td>{{ file.time }}</td>
                 <td>
                     <a href="{{ url_for('download_file', filename=file.name) }}" class="btn-download">Download</a>
-                    
                     <form action="/delete/{{ file.name }}" method="post" style="display:inline;">
                         <button type="submit" class="btn-delete" onclick="return confirm('Delete this file from GCS?')">Delete</button>
                     </form>
@@ -55,6 +60,45 @@
         <div id="trainStatus" class="status-box"></div>
     </div>
 
+    <div class="registry-section">
+        <h3>Model Registry (MLflow)</h3>
+        <p>Manage model lifecycle versions and deployment stages.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Version</th>
+                    <th>Accuracy</th>
+                    <th>Stage</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if model_versions %}
+                    {% for m in model_versions %}
+                    <tr>
+                        <td><strong>v{{ m.version }}</strong></td>
+                        <td>{{ m.accuracy }}</td>
+                        <td>
+                            <span class="badge {{ 'badge-prod' if m.stage == 'Production' else '' }}">
+                                {{ m.stage }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if m.stage != "Production" %}
+                                <button class="btn-promote" onclick="promoteToProd('{{ m.version }}')">🚀 Promote to Production</button>
+                            {% else %}
+                                <span style="color: #27ae60; font-weight: bold;">● Active</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="4" style="text-align: center;">No models registered yet.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
     <script>
         function triggerTraining() {
             const btn = document.getElementById('trainBtn');
@@ -62,19 +106,23 @@
             btn.disabled = true;
             status.style.display = 'block';
             status.style.background = '#d1ecf1';
-            status.innerText = "Training started in background... (Refreshing in 5s)";
-
+            status.innerText = "Training started... (Refreshing in 5s)";
             fetch('/trigger-train', { method: 'POST' })
                 .then(res => res.json())
-                .then(data => {
+                .then(() => {
                     status.style.background = '#d4edda';
-                    status.innerText = "Success! New model generated.";
+                    status.innerText = "Success! Reloading...";
                     setTimeout(() => location.reload(), 5000);
-                })
-                .catch(err => {
-                    status.style.background = '#f8d7da';
-                    status.innerText = "Error starting training.";
-                    btn.disabled = false;
+                });
+        }
+
+        function promoteToProd(version) {
+            if(!confirm("Are you sure you want to promote v" + version + " to Production?")) return;
+            fetch('/promote/' + version, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    alert(data.message);
+                    location.reload();
                 });
         }
     </script>

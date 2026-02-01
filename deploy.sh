@@ -27,3 +27,9 @@ kubectl set image deployment/$DEPLOYMENT_NAME $CONTAINER_NAME=$FULL_IMAGE_PATH
 
 echo "✅ Success! Deployment $TAG is rolling out."
 echo "Check files with: kubectl exec deployment/$DEPLOYMENT_NAME -- ls /app"
+
+# Force a restart of the pods to pull the latest code
+kubectl rollout restart deployment $DEPLOYMENT_NAME
+
+# Optional: Wait for the rollout to finish so you know it worked
+kubectl rollout status deployment $DEPLOYMENT_NAME
