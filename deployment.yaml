@@ -24,11 +24,11 @@ spec:
         - name: GCP_BUCKET_NAME
           value: "housing-data-for-testing"
         volumeMounts:
-        - name: gcs-key-volume
+        - name: google-cloud-key
           mountPath: /var/secrets/google
           readOnly: true
       volumes:
-      - name: gcs-key-volume
+      - name: google-cloud-key
         secret:
           secretName: gcs-key
 ---
