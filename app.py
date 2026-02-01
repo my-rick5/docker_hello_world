@@ -70,7 +70,7 @@ def dashboard():
                 'time': blob.updated.strftime('%Y-%m-%d %H:%M:%S')
             })
         model_versions = get_model_history()
-            return render_template('dashboard.html', files=files, model_versions=model_versions)
+        return render_template('dashboard.html', files=files, model_versions=model_versions)
     except Exception as e:
         return f"Error: {e}", 500
 
