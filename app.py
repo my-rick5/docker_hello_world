@@ -123,12 +123,12 @@ def predict():
         return f"Prediction Error (Is a model promoted to Production?): {e}", 500
 
 @app.route('/download/<path:filename>')
-def download_file(filename): # This function name MUST match the url_for in HTML
+def download_file(filename):  # <--- This MUST be named 'download_file'
     try:
         _, bucket = get_gcs_resource()
         blob = bucket.blob(filename)
         
-        # Download the file to a buffer
+        import io
         file_data = io.BytesIO()
         blob.download_to_file(file_data)
         file_data.seek(0)
@@ -136,7 +136,7 @@ def download_file(filename): # This function name MUST match the url_for in HTML
         return send_file(
             file_data,
             as_attachment=True,
-            download_name=filename.split('/')[-1] # Gets the actual filename
+            download_name=filename.split('/')[-1]
         )
     except Exception as e:
         return f"Download failed: {e}", 500
