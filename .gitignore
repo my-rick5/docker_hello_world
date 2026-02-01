@@ -9,6 +9,7 @@ mlflow.db
 model.pkl
 data/
 *.csv
+key.json
 
 # OS files
 .DS_Store

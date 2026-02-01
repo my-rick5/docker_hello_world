@@ -14,9 +14,23 @@ spec:
     spec:
       containers:
       - name: hello-world
-        image: gcr.io/dockerhelloworld-485819/hello-world-app:v2
+        # Make sure this image tag is updated if you've pushed a newer version
+        image: gcr.io/dockerhelloworld-485819/hello-world-app:v8
         ports:
         - containerPort: 8080
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/var/secrets/google/key.json"
+        - name: GCP_BUCKET_NAME
+          value: "housing-data-for-testing"
+        volumeMounts:
+        - name: gcs-key-volume
+          mountPath: /var/secrets/google
+          readOnly: true
+      volumes:
+      - name: gcs-key-volume
+        secret:
+          secretName: gcs-key
 ---
 apiVersion: v1
 kind: Service

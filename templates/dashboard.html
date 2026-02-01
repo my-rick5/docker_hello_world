@@ -1,33 +1,78 @@
-<div style="margin-top: 30px; padding: 20px; background: #e8f4fd; border-radius: 8px; border: 1px solid #3498db;">
-    <h3>Model Control</h3>
-    <p>Clicking the button below will trigger <code>train.py</code> to pull all files listed above and generate a new <code>model.pkl</code>.</p>
-    
-    <button id="trainBtn" onclick="triggerTraining()" style="background: #27ae60; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
-        🚀 Retrain Model on Collective Memory
-    </button>
-    <div id="trainStatus" style="margin-top: 10px; font-weight: bold;"></div>
-</div>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Collective Memory</title>
+    <style>
+        body { font-family: sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .btn-delete { color: #e74c3c; cursor: pointer; background: none; border: none; font-weight: bold; }
+        .status-box { margin-top: 20px; padding: 15px; border-radius: 5px; display: none; }
+        .train-section { background: #e8f4fd; padding: 20px; border-radius: 8px; border: 1px solid #3498db; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <a href="/" style="text-decoration: none;">← Back to Trainer</a>
+    <h1>Cloud Data Archive</h1>
+    <p>These files are stored in GCS and used for the next training cycle.</p>
 
-<script>
-function triggerTraining() {
-    const btn = document.getElementById('trainBtn');
-    const status = document.getElementById('trainStatus');
-    
-    btn.disabled = true;
-    status.innerText = "Training started in background... check GCS in ~30s.";
-    status.style.color = "#2980b9";
+    <table>
+        <thead>
+            <tr>
+                <th>File Name</th>
+                <th>Size</th>
+                <th>Last Modified</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in files %}
+            <tr>
+                <td>{{ file.name }}</td>
+                <td>{{ file.size }}</td>
+                <td>{{ file.time }}</td>
+                <td>
+                    <form action="/delete/{{ file.name }}" method="post" style="display:inline;">
+                        <button type="submit" class="btn-delete" onclick="return confirm('Delete this file from GCS?')">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 
-    fetch('/trigger-train', { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-            status.innerText = "Success! New model is now live.";
-            status.style.color = "#27ae60";
-            btn.disabled = false;
-        })
-        .catch(err => {
-            status.innerText = "Error triggering training.";
-            status.style.color = "#e74c3c";
-            btn.disabled = false;
-        });
-}
-</script>
+    <div class="train-section">
+        <h3>Model Intelligence</h3>
+        <p>Trigger a new training run using all files listed above.</p>
+        <button id="trainBtn" onclick="triggerTraining()" style="background: #27ae60; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer;">
+            🚀 Retrain Model on All Cloud Data
+        </button>
+        <div id="trainStatus" class="status-box"></div>
+    </div>
+
+    <script>
+        function triggerTraining() {
+            const btn = document.getElementById('trainBtn');
+            const status = document.getElementById('trainStatus');
+            btn.disabled = true;
+            status.style.display = 'block';
+            status.style.background = '#d1ecf1';
+            status.innerText = "Training started in background... (Refreshing in 5s)";
+
+            fetch('/trigger-train', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    status.style.background = '#d4edda';
+                    status.innerText = "Success! New model generated.";
+                    setTimeout(() => location.reload(), 5000);
+                })
+                .catch(err => {
+                    status.style.background = '#f8d7da';
+                    status.innerText = "Error starting training.";
+                    btn.disabled = false;
+                });
+        }
+    </script>
+</body>
+</html>

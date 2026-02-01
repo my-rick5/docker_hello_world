@@ -4,4 +4,5 @@ mlflow.db
 mlruns/
 *.pkl
 *.csv
+key.json
 __pycache__/

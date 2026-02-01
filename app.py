@@ -1,144 +1,103 @@
 import os
-import io
-import pickle
-import pandas as pd
-from flask import Flask, request, render_template, redirect, url_for
-from google.cloud import storage
 import threading
 import subprocess
+from flask import Flask, render_template, request, redirect, url_for, jsonify
+from google.cloud import storage
 
 app = Flask(__name__)
 
-# --- 1. CONSOLIDATED HELPERS ---
+# --- GCS Configuration ---
+BUCKET_NAME = os.environ.get('GCP_BUCKET_NAME', 'housing-data-for-testing')
+
 def get_gcs_resource():
-    """Single source of truth for GCS access."""
-    bucket_name = os.getenv("GCP_BUCKET_NAME", "housing-data-for-testing")
+    """Helper to initialize the GCS client."""
     client = storage.Client()
-    return client, client.bucket(bucket_name)
+    bucket = client.bucket(BUCKET_NAME)
+    return client, bucket
 
-def get_collective_memory_data():
-    """Shared logic for both the dashboard and the trainer."""
-    _, bucket = get_gcs_resource()
-    blobs = bucket.list_blobs(prefix="uploads/")
-    
-    file_list = []
-    for blob in blobs:
-        if blob.name.endswith(".csv"):
-            file_list.append({
-                "name": blob.name.replace("uploads/", ""),
-                "full_path": blob.name,
-                "size": f"{round(blob.size / 1024, 2)} KB",
-                "updated": blob.updated.strftime('%Y-%m-%d %H:%M:%S'),
-                "type": "Structured CSV"
-            })
-    file_list.sort(key=lambda x: x['updated'], reverse=True)
-    return file_list, bucket.name
+# --- Routes ---
 
-# --- 2. ROUTES ---
 @app.route('/')
 def index():
+    """Main page with Upload form and Predict form."""
     return render_template('index.html')
 
 @app.route('/dashboard')
 def dashboard():
     try:
-        memories, bucket_name = get_collective_memory_data()
-        return render_template('dashboard.html', files=memories, bucket_name=bucket_name, view_mode="Collective Memory")
+        _, bucket = get_gcs_resource()
+        # REMOVE prefix="uploads/" to see all files in your bucket
+        blobs = bucket.list_blobs() 
+        file_list = []
+        for blob in blobs:
+            file_list.append({
+                'name': blob.name,
+                'size': f"{blob.size / 1024:.2f} KB",
+                'time': blob.updated.strftime('%Y-%m-%d %H:%M:%S')
+            })
+        return render_template('dashboard.html', files=file_list)
     except Exception as e:
-        return f"Error loading Collective Memory: {e}", 500
+        return f"Error: {e}", 500
 
 @app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return {"status": "error", "message": "No file part"}, 400
+def upload():
+    """Upload a CSV to the GCS 'uploads/' directory."""
+    file = request.files.get('file')
+    if not file:
+        return "No file provided", 400
     
-    file = request.files['file']
-    if file.filename == '':
-        return {"status": "error", "message": "No selected file"}, 400
-
     try:
-        # 1. Read the file into memory
-        file_bytes = file.read()
-        
-        # 2. Upload directly to GCS
-        # This will automatically trigger your Lambda/Background process
-        upload_to_gcs(file_bytes, file.filename, file.content_type)
-        
-        # 3. Respond immediately
-        return {
-            "status": "success",
-            "message": f"'{file.filename}' added to Collective Memory. Training started in background.",
-            "redirect_hint": url_for('dashboard')
-        }, 202  # 202 means 'Accepted' for processing
-        
-    except Exception as e:
-        app.logger.error(f"Upload failed: {e}")
-        return {"status": "error", "message": "Failed to store memory."}, 500
-
-@app.route('/predict', methods=['GET'])
-def predict():
-    sqft = request.args.get('sqft')
-    if not sqft:
-        return {"error": "Missing 'sqft' parameter"}, 400
-
-    try:
-        # 1. Get the latest model from GCS (Collective Memory)
-        # This replaces the local os.path.exists('model.pkl') check
+        file = request.files.get('file')
         _, bucket = get_gcs_resource()
-        blob = bucket.blob("models/model.pkl") # Assuming Lambda saves here
-        
-        if not blob.exists():
-            return {"error": "Model is still being trained in the cloud. Please wait."}, 503
-
-        # 2. Download model into memory (don't save to disk to keep it lean)
-        model_bytes = blob.download_as_bytes()
-        model = pickle.loads(model_bytes)
-        
-        # 3. Perform prediction
-        # We still need to cast to float for the model
-        prediction = model.predict([[float(sqft)]])
-        result = "EXPENSIVE" if prediction[0] == 1 else "AFFORDABLE"
-        
-        return {
-            "sqft": sqft, 
-            "prediction": result,
-            "source": "Cloud Memory Model"
-        }
-        
+        # Just use the filename directly
+        blob = bucket.blob(file.filename) 
+        blob.upload_from_file(file)
+        return redirect(url_for('dashboard'))
     except Exception as e:
-        app.logger.error(f"Prediction Error: {e}")
-        return {"error": "Failed to process prediction. Ensure data is formatted correctly."}, 500
+        return f"Upload failed: {e}", 500
+
+@app.route('/delete/<path:filename>', methods=['POST'])
+def delete_file(filename):
+    """Delete a specific file from the GCS bucket."""
+    try:
+        _, bucket = get_gcs_resource()
+        # Re-attach the prefix since we stripped it for the UI
+        full_path = f"uploads/{filename}"
+        blob = bucket.blob(full_path)
+        
+        if blob.exists():
+            blob.delete()
+            print(f"Deleted {full_path} from GCS.")
+            return redirect(url_for('dashboard'))
+        else:
+            return f"File {filename} not found in GCS", 404
+    except Exception as e:
+        return f"Error deleting file: {e}", 500
 
 @app.route('/trigger-train', methods=['POST'])
 def trigger_train():
-    """
-    Triggers the separate train.py script.
-    Using a thread prevents the web UI from freezing during training.
-    """
-    def run_training_script():
+    """Runs train.py in a background thread to prevent UI timeout."""
+    def run_training():
         try:
-            app.logger.info("Background training started...")
-            # This calls your separate train.py file
-            result = subprocess.run(["python", "train.py"], capture_output=True, text=True)
-            if result.returncode == 0:
-                app.logger.info("Background training completed successfully.")
-            else:
-                app.logger.error(f"Training script failed: {result.stderr}")
+            print("Background training started...")
+            # This executes your train.py logic
+            subprocess.run(["python", "train.py"], check=True)
+            print("Background training completed successfully.")
         except Exception as e:
-            app.logger.error(f"Error during background training: {e}")
+            print(f"Background training failed: {e}")
 
-    # Fire and forget
-    thread = threading.Thread(target=run_training_script)
+    thread = threading.Thread(target=run_training)
     thread.start()
+    return jsonify({"status": "success", "message": "Training started."}), 202
 
-    return {"status": "success", "message": "Training initiated in the cloud."}, 202
-
-# --- 3. TO BE MOVED TO LAMBDA/CONSOLE ---
-# train_with_memory()
-# clean_and_validate()
-# These functions should live in 'trainer.py' or 'console_interface.py'
+@app.route('/predict', methods=['GET'])
+def predict():
+    """Pulls the latest model and makes a prediction."""
+    # Placeholder for your prediction logic
+    sqft = request.args.get('sqft')
+    # logic to load model.pkl from GCS and predict...
+    return f"Prediction for {sqft} sqft: (Mock: EXPENSIVE)"
 
 if __name__ == "__main__":
-    # 0.0.0.0 is MANDATORY for Docker
-    # port 8080 must match the internal part of your -p 5005:8080
-    app.run(host="0.0.0.0", port=8080)
+    # Crucial for GKE: Listen on 8080
+    app.run(host='0.0.0.0', port=8080)
