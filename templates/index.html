@@ -20,6 +20,8 @@
             height: 250px; overflow-y: scroll; font-family: 'Courier New', monospace; 
             font-size: 13px; border: 2px solid #333; white-space: pre-wrap;
         }
+        .button-primary { transition: all 0.2s ease; }
+        .button-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
@@ -47,7 +49,7 @@
                     <td>{{ file.name }}</td>
                     <td>{{ file.size }}</td>
                     <td>{{ file.time }}</td>
-                    <td><a href="/download/{{ file.name }}">Download</a></td>
+                    <td><a href="{{ url_for('download_file', filename=file.name) }}">Download</a></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -108,8 +110,8 @@
         <pre id="log-window">System standby. Waiting for training run...</pre>
     </div>
 
-    <div style="text-align: center; margin-top: 20px;">
-        <a href="/predict?sqft=1500" target="_blank">Test Production Model (Quick Predict 1500 sqft)</a>
+    <div style="text-align: center; margin-top: 20px; padding-bottom: 20px;">
+        <a href="/predict?sqft=1500" target="_blank" class="button">Test Production Model (Quick Predict 1500 sqft)</a>
     </div>
 </div>
 
@@ -119,10 +121,14 @@
             .then(response => response.text())
             .then(data => {
                 const logWindow = document.getElementById('log-window');
-                logWindow.textContent = data;
-                // Auto-scroll to bottom as new logs come in
-                logWindow.scrollTop = logWindow.scrollHeight; 
-            });
+                // Only update if data has changed to prevent flicking
+                if (logWindow.textContent !== data) {
+                    logWindow.textContent = data;
+                    // Auto-scroll to bottom as new logs come in
+                    logWindow.scrollTop = logWindow.scrollHeight;
+                }
+            })
+            .catch(err => console.error("Log fetch failed:", err));
     }
     // Update logs every 2 seconds
     setInterval(fetchLogs, 2000);
