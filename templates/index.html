@@ -1,60 +1,134 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>ML Model Dashboard</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collective Memory - ML Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
+    <style>
+        body { padding: 50px; background-color: #f4f7f6; }
+        .container { max-width: 900px; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2, h4 { color: #2c3e50; font-weight: bold; }
+        .form-section { margin-bottom: 40px; padding: 20px; border: 1px solid #eee; border-radius: 8px; }
+        table { width: 100%; }
+        th { background-color: #f8f9fa; }
+        .status-badge { padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; text-transform: uppercase; }
+        .status-production { background: #d4edda; color: #155724; }
+        .status-none { background: #e2e3e5; color: #383d41; }
+        #log-window { 
+            background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 5px; 
+            height: 250px; overflow-y: scroll; font-family: 'Courier New', monospace; 
+            font-size: 13px; border: 2px solid #333; white-space: pre-wrap;
+        }
+    </style>
 </head>
-<body class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>🚀 Model Registry</h2>
-        <span class="badge bg-info text-dark">Connected to MLflow</span>
+<body>
+
+<div class="container">
+    <h2>🧠 Collective Memory</h2>
+    <p>Operational Command for GKE Model Management</p>
+    <hr>
+
+    <div class="form-section">
+        <h4>📁 Cloud Data Archive</h4>
+        <p><small>Showing files in <code>data/</code> and <code>models/</code>. System artifacts are hidden.</small></p>
+        <table class="u-full-width">
+            <thead>
+                <tr>
+                    <th>File Name</th>
+                    <th>Size</th>
+                    <th>Last Modified</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for file in files %}
+                <tr>
+                    <td>{{ file.name }}</td>
+                    <td>{{ file.size }}</td>
+                    <td>{{ file.time }}</td>
+                    <td><a href="/download/{{ file.name }}">Download</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <form action="/upload" method="post" enctype="multipart/form-data" style="margin-top:20px;">
+            <input type="file" name="file">
+            <button class="button-primary" type="submit">Upload New Data</button>
+        </form>
     </div>
 
-    <table class="table table-hover border">
-        <thead class="table-light">
-            <tr>
-                <th>Version</th>
-                <th>Current Stage</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for model in models %}
-            <tr>
-                <td><strong>v{{ model.version }}</strong></td>
-                <td>
-                    {% if model.stage == 'Production' %}
-                        <span class="badge bg-success">Production</span>
-                    {% elif model.stage == 'Staging' %}
-                        <span class="badge bg-warning text-dark">Staging</span>
-                    {% else %}
-                        <span class="badge bg-secondary">None</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <button 
-                        class="btn btn-sm btn-outline-primary" 
-                        onclick="promote('{{ model.version }}')"
-                        {% if model.stage == 'Production' %}disabled{% endif %}>
-                        Promote to Prod
-                    </button>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="form-section">
+        <h4>📉 Model Registry (MLflow)</h4>
+        <table class="u-full-width">
+            <thead>
+                <tr>
+                    <th>Version</th>
+                    <th>Stage</th>
+                    <th>Accuracy</th>
+                    <th>Created</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for model in model_versions %}
+                <tr>
+                    <td><strong>v{{ model.version }}</strong></td>
+                    <td>
+                        <span class="status-badge status-{{ model.stage|lower }}">
+                            {{ model.stage }}
+                        </span>
+                    </td>
+                    <td>{{ model.accuracy }}</td>
+                    <td><small>{{ model.created }}</small></td>
+                    <td>
+                        {% if model.stage != 'Production' %}
+                        <form action="/promote/{{ model.version }}" method="post" style="display:inline;">
+                            <button type="submit" style="padding: 0 10px; height: 30px; line-height: 30px;">🚀 Promote</button>
+                        </form>
+                        {% else %}
+                        <span style="color: green; font-weight: bold;">LIVE</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <form action="/trigger-train" method="post">
+            <button class="button-primary" style="background-color: #27ae60; border-color: #27ae60;" type="submit">
+                🚀 Retrain Model on All Cloud Data
+            </button>
+        </form>
+    </div>
 
-    <script>
-        function promote(v) {
-            if(confirm('Are you sure you want to promote v' + v + ' to Production?')) {
-                fetch('/promote/' + v, { method: 'POST' })
-                    .then(res => res.json())
-                    .then(data => {
-                        alert(data.message);
-                        location.reload(); // Refresh to show new stage
-                    });
-            }
-        }
-    </script>
+    <div class="form-section">
+        <h4>📟 Training Terminal (Live Logs)</h4>
+        <pre id="log-window">System standby. Waiting for training run...</pre>
+    </div>
+
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="/predict?sqft=1500" target="_blank">Test Production Model (Quick Predict 1500 sqft)</a>
+    </div>
+</div>
+
+<script>
+    function fetchLogs() {
+        fetch('/logs')
+            .then(response => response.text())
+            .then(data => {
+                const logWindow = document.getElementById('log-window');
+                logWindow.textContent = data;
+                // Auto-scroll to bottom as new logs come in
+                logWindow.scrollTop = logWindow.scrollHeight; 
+            });
+    }
+    // Update logs every 2 seconds
+    setInterval(fetchLogs, 2000);
+    // Initial fetch
+    fetchLogs();
+</script>
+
 </body>
 </html>

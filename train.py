@@ -1,98 +1,67 @@
 import os
 import io
-import pickle
 import pandas as pd
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 import mlflow
 import mlflow.sklearn
 from google.cloud import storage
-from sklearn.linear_model import LogisticRegression
-from mlflow.tracking import MlflowClient
 
-# --- 1. CONFIGURATION ---
-os.environ["GIT_PYTHON_REFRESH"] = "quiet"
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/var/secrets/google/key.json"
-
+# --- Configuration ---
+# Match the persistent path from your PVC
+DB_PATH = "/app/data/mlflow.db"
+TRACKING_URI = f"sqlite:///{DB_PATH}"
 BUCKET_NAME = os.getenv("GCP_BUCKET_NAME", "housing-data-for-testing")
-ARTIFACT_URI = f"gs://{BUCKET_NAME}/mlflow-artifacts"
-MODEL_NAME = "HousingPriceModel" # The name for the Registry
 
-# Setup MLflow Tracking
-# Note: In a shared K8s environment, you'd eventually point this to a central server
-mlflow.set_tracking_uri("sqlite:///mlflow.db")
-
-experiment_name = "House_Price_Prediction"
-try:
-    mlflow.create_experiment(experiment_name, artifact_location=ARTIFACT_URI)
-except Exception:
-    mlflow.set_experiment(experiment_name)
+def get_gcs_resource():
+    """Initialize GCS client using the mounted secret key."""
+    # The path to the key is defined in your deployment.yaml volume mount
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/var/secrets/google/key.json"
+    client = storage.Client()
+    bucket = client.bucket(BUCKET_NAME)
+    return client, bucket
 
 def train_model():
-    print(f"Checking for bucket: {BUCKET_NAME}...", flush=True)
-    
-    # --- 2. GCS CLIENT SETUP ---
-    try:
-        client = storage.Client()
-        bucket = client.bucket(BUCKET_NAME)
-    except Exception as e:
-        print(f"❌ Failed to connect to GCS: {e}", flush=True)
-        return
-    
-    # --- 3. PULL DATA FROM GCS ---
-    data_blob = bucket.blob("uploads/test_data.csv")
-    
-    if not data_blob.exists():
-        print(f"❌ Error: No training data found at gs://{BUCKET_NAME}/uploads/test_data.csv", flush=True)
+    # 1. Setup MLflow tracking to the Persistent Volume
+    mlflow.set_tracking_uri(TRACKING_URI)
+    mlflow.set_experiment("Housing_Price_Analysis")
+
+    print(f"Connecting to GCS bucket: {BUCKET_NAME}...")
+    client, bucket = get_gcs_resource()
+
+    # 2. Pull data from the ISOLATED 'data/' folder
+    blob_name = "data/test_data.csv"
+    blob = bucket.blob(blob_name)
+
+    if not blob.exists():
+        print(f"❌ Error: {blob_name} not found in bucket. Please upload via Dashboard.")
         return
 
-    print("📥 Downloading training data from GCS...", flush=True)
-    data_bytes = data_blob.download_as_bytes()
+    print(f"Downloading {blob_name}...")
+    data_bytes = blob.download_as_bytes()
     df = pd.read_csv(io.BytesIO(data_bytes))
-    
-    # --- 4. MLFLOW RUN ---
-    with mlflow.start_run() as run:
-        print(f"🔍 Active Run ID: {run.info.run_id}", flush=True)
-        print("🚀 Starting MLflow training run...", flush=True)
-        
-        # Hyperparameters
-        c_param = 0.01
-        mlflow.log_param("C_value", c_param)
-        mlflow.log_param("model_type", "LogisticRegression")
 
-        # Train the Model
-        model = LogisticRegression(C=c_param)
-        model.fit(df[['sqft']], df['is_expensive'])
+    # 3. Simple Preprocessing (Assumes 'sqft' and 'price' columns)
+    # Adjust these column names based on your actual test_data.csv
+    if 'sqft' in df.columns and 'price' in df.columns:
+        X = df[['sqft']]
+        y = df['price']
+    else:
+        # Fallback for generic CSV testing
+        print("Columns 'sqft'/'price' not found. Using first and last columns as features/target.")
+        X = df.iloc[:, :-1]
+        y = df.iloc[:, -1]
 
-        # Log Metrics
-        accuracy = model.score(df[['sqft']], df['is_expensive'])
-        mlflow.log_metric("accuracy", accuracy)
-        print(f"📊 Model Accuracy: {accuracy}", flush=True)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-        # --- 5. LOGGING & REGISTRATION ---
-        
-        # Log to MLflow Registry
-        print(f"📦 Registering model as '{MODEL_NAME}'...", flush=True)
-        try:
-            # log_model and register_model_name handles versioning automatically
-            mlflow.sklearn.log_model(
-                sk_model=model, 
-                artifact_path="house_model",
-                registered_model_name=MODEL_NAME
-            )
-            print("✅ Model registered successfully in MLflow.", flush=True)
-        except Exception as e:
-            print(f"⚠️ Registration failed: {e}", flush=True)
+    # 4. Training with MLflow Tracking
+    with mlflow.start_run(run_name="GKE_Background_Train"):
+        model = LinearRegression()
+        model.fit(X_train, y_train)
 
-        # Legacy Support: Save specific pickle for the Flask app to GCS
-        # (Optional: In a full MLOps setup, the Flask app would pull from MLflow)
-        print("📤 Uploading legacy model.pkl to GCS...", flush=True)
-        model_blob = bucket.blob("models/model.pkl")
-        model_bytes = pickle.dumps(model)
-        
-        try:
-            model_blob.upload_from_string(model_bytes)
-            print("✅ Success! Legacy model saved to GCS.", flush=True)
-        except Exception as e:
-            print(f"❌ Legacy upload failed: {e}", flush=True)
-
-if __name__ == "__main__":
-    train_model()
+        predictions = model.predict(X_test)
+        # We'll log "accuracy" as 1 - normalized error for your dashboard display
+        mse = mean_squared_error(y_test, predictions)
+        accuracy = 1.0 / (1

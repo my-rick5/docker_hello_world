@@ -126,5 +126,26 @@
                 });
         }
     </script>
+    <div class="form-section">
+        <h3>Training Terminal</h3>
+        <pre id="log-window" style="background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 5px; height: 200px; overflow-y: scroll; font-family: monospace; font-size: 12px;">
+            Loading logs...
+        </pre>
+    </div>
+
+    <script>
+        function fetchLogs() {
+            fetch('/logs')
+                .then(response => response.text())
+                .then(data => {
+                    const logWindow = document.getElementById('log-window');
+                    logWindow.textContent = data;
+                    logWindow.scrollTop = logWindow.scrollHeight; // Auto-scroll to bottom
+                });
+        }
+        // Refresh logs every 3 seconds
+        setInterval(fetchLogs, 3000);
+        fetchLogs(); // Initial load
+    </script>
 </body>
 </html>

@@ -13,36 +13,27 @@ spec:
         app: hello-world
     spec:
       containers:
-      - name: hello-world
-        # This matches your latest build
-        image: gcr.io/dockerhelloworld-485819/hello-world-app:v11
-        imagePullPolicy: Always
+      - name: hello-world-app
+        image: gcr.io/dockerhelloworld-485819/hello-world-app:v20  # Update to v16 after code change
         ports:
         - containerPort: 8080
         env:
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: "/var/secrets/google/key.json"
         - name: GCP_BUCKET_NAME
           value: "housing-data-for-testing"
         volumeMounts:
+        # Mount for GCP Credentials
         - name: google-cloud-key
           mountPath: /var/secrets/google
           readOnly: true
+        # NEW: Mount for Persistent MLflow Database
+        - name: mlflow-db-storage
+          mountPath: /app/data
       volumes:
+      # Volume for GCP Credentials
       - name: google-cloud-key
         secret:
-          # Changed from gcs-key to gcp-key to match your 'kubectl create' command
           secretName: gcp-key
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: hello-world-service
-spec:
-  type: LoadBalancer
-  selector:
-    app: hello-world
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 8080  
+      # NEW: Volume for Persistent MLflow Database
+      - name: mlflow-db-storage
+        persistentVolumeClaim:
+          claimName: mlflow-sqlite-pvc
