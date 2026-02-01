@@ -54,7 +54,11 @@ def get_model_history():
 @app.route('/')
 def index():
     """Main page with Upload form and Predict form."""
-    return render_template('index.html')
+    model_data = [
+        {"version": "1", "stage": "Production", "timestamp": "2024-05-20"},
+        {"version": "2", "stage": "Staging", "timestamp": "2024-05-21"},
+    ]
+    return render_template('index.html', models=model_data)
 
 @app.route('/dashboard')
 def dashboard():
