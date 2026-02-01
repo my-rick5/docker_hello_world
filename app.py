@@ -60,18 +60,26 @@ def index():
 def dashboard():
     try:
         _, bucket = get_gcs_resource()
-        # REMOVE prefix="uploads/" to see all files in your bucket
+        # list_blobs() gets everything in the bucket
         blobs = bucket.list_blobs() 
-        file_list = []
+        
+        files = [] # Renamed to 'files' to match your render_template call
         for blob in blobs:
-            file_list.append({
+            files.append({
                 'name': blob.name,
                 'size': f"{blob.size / 1024:.2f} KB",
                 'time': blob.updated.strftime('%Y-%m-%d %H:%M:%S')
             })
+        
+        # Pull the history from your MLflow SQLite DB
         model_versions = get_model_history()
         return render_template('dashboard.html', files=files, model_versions=model_versions)
+        
+        # This MUST be inside the try block and indented correctly
+        return render_template('dashboard.html', files=files, model_versions=model_versions)
+        
     except Exception as e:
+        print(f"❌ Dashboard Error: {e}")
         return f"Error: {e}", 500
 
 @app.route('/upload', methods=['POST'])
