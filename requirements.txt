@@ -4,5 +4,6 @@ pandas
 numpy
 mlflow
 google-cloud-storage
+google-cloud-logging
 fsspec
 gcsfs

@@ -7,7 +7,9 @@
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
         th { background-color: #f2f2f2; }
-        .btn-delete { color: #e74c3c; cursor: pointer; background: none; border: none; font-weight: bold; }
+        .btn-delete { color: #e74c3c; cursor: pointer; background: none; border: none; font-weight: bold; padding: 0; }
+        .btn-download { color: #27ae60; text-decoration: none; font-weight: bold; margin-right: 15px; }
+        .btn-download:hover { text-decoration: underline; }
         .status-box { margin-top: 20px; padding: 15px; border-radius: 5px; display: none; }
         .train-section { background: #e8f4fd; padding: 20px; border-radius: 8px; border: 1px solid #3498db; margin-top: 30px; }
     </style>
@@ -30,9 +32,11 @@
             {% for file in files %}
             <tr>
                 <td>{{ file.name }}</td>
-                <td>{{ file.size }}</td>
+                <td>{{ (file.size|int / 1024) | round(2) }} KB</td>
                 <td>{{ file.time }}</td>
                 <td>
+                    <a href="{{ url_for('download_file', filename=file.name) }}" class="btn-download">Download</a>
+                    
                     <form action="/delete/{{ file.name }}" method="post" style="display:inline;">
                         <button type="submit" class="btn-delete" onclick="return confirm('Delete this file from GCS?')">Delete</button>
                     </form>

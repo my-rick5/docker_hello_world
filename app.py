@@ -1,13 +1,18 @@
 import os
+import io
 import threading
 import subprocess
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
 from google.cloud import storage
 
 app = Flask(__name__)
 
-# --- GCS Configuration ---
-BUCKET_NAME = os.environ.get('GCP_BUCKET_NAME', 'housing-data-for-testing')
+
+# --- INITIALIZE CLIENT GLOBALLY ---
+# This ensures every route (like /download) can access it
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/var/secrets/google/key.json"
+BUCKET_NAME = os.getenv("GCP_BUCKET_NAME", "housing-data-for-testing")
+storage_client = storage.Client()
 
 def get_gcs_resource():
     """Helper to initialize the GCS client."""
@@ -81,7 +86,7 @@ def trigger_train():
         try:
             print("Background training started...")
             # This executes your train.py logic
-            subprocess.run(["python", "train.py"], check=True)
+            subprocess.run(["python", "./train.py"])
             print("Background training completed successfully.")
         except Exception as e:
             print(f"Background training failed: {e}")
@@ -97,6 +102,29 @@ def predict():
     sqft = request.args.get('sqft')
     # logic to load model.pkl from GCS and predict...
     return f"Prediction for {sqft} sqft: (Mock: EXPENSIVE)"
+
+@app.route('/download/<path:filename>')
+def download_file(filename):
+    try:
+        # Now storage_client is recognized!
+        bucket = storage_client.bucket(BUCKET_NAME)
+        blob = bucket.blob(filename)
+        
+        if not blob.exists():
+            return "File not found in Cloud Storage", 404
+
+        file_data = io.BytesIO()
+        blob.download_to_file(file_data)
+        file_data.seek(0)
+        
+        return send_file(
+            file_data, 
+            as_attachment=True, 
+            download_name=filename.split('/')[-1]
+        )
+    except Exception as e:
+        print(f"❌ Download failed: {e}")
+        return f"Internal Error: {e}", 500
 
 if __name__ == "__main__":
     # Crucial for GKE: Listen on 8080

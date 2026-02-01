@@ -15,7 +15,7 @@ spec:
       containers:
       - name: hello-world
         # Make sure this image tag is updated if you've pushed a newer version
-        image: gcr.io/dockerhelloworld-485819/hello-world-app:v8
+        image: gcr.io/dockerhelloworld-485819/hello-world-app:v9
         ports:
         - containerPort: 8080
         env:
