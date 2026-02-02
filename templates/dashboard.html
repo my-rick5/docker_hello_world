@@ -18,7 +18,6 @@
             overflow-y: auto;
             white-space: pre-wrap;
         }
-        .status-bar { padding: 10px; border-radius: 5px; margin-top: 10px; font-weight: bold; }
         .btn-retrain { background-color: #00a86b; color: white; border: none; }
         .btn-retrain:hover { background-color: #008f5d; color: white; }
     </style>
@@ -26,29 +25,21 @@
 <body>
 
 <div class="container">
-    <h1 class="mb-4"># Cloud Data Archive</h1>
-    <p>These files are stored in GCS and used for the next training cycle.</p>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1># Cloud Data Archive</h1>
+        <a href="/predict?sqft=1500" class="btn btn-outline-dark">🔍 Test Prediction</a>
+    </div>
 
     <div class="card p-3">
         <table class="table table-hover">
             <thead>
-                <tr>
-                    <th>File Name</th>
-                    <th>Size</th>
-                    <th>Last Modified</th>
-                    <th>Action</th>
-                </tr>
+                <tr><th>File Name</th><th>Size</th><th>Last Modified</th><th>Action</th></tr>
             </thead>
             <tbody>
                 {% for file in files %}
                 <tr>
-                    <td>{{ file.name }}</td>
-                    <td>{{ file.size }}</td>
-                    <td>{{ file.time }}</td>
-                    <td>
-                        <a href="/download/{{ file.name }}" class="text-success text-decoration-none fw-bold">Download</a>
-                        <span class="text-danger ms-2" style="cursor:pointer;">Delete</span>
-                    </td>
+                    <td>{{ file.name }}</td><td>{{ file.size }}</td><td>{{ file.time }}</td>
+                    <td><a href="/download/{{ file.name }}" class="text-success text-decoration-none fw-bold">Download</a></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -57,84 +48,62 @@
 
     <div class="card p-4" style="border: 2px solid #add8e6;">
         <h3>Model Intelligence</h3>
-        <p>Trigger a new training run using all files listed above.</p>
-        
-        <form action="/trigger-train" method="POST">
-            <button type="submit" class="btn btn-retrain">
-                🚀 Retrain Model on All Cloud Data
-            </button>
+        <form action="/trigger-train" method="POST" id="train-form">
+            <button type="submit" class="btn btn-retrain">🚀 Retrain Model on All Cloud Data</button>
         </form>
-
-        <div id="training-status" class="status-bar bg-info-subtle text-info-emphasis mt-3" style="display:none;">
-            Training started... (Logs updating in real-time)
-        </div>
     </div>
 
     <div class="card p-4" style="border: 2px solid #fff3cd;">
         <h3>Model Registry (MLflow)</h3>
-        <p>Manage model lifecycle versions and deployment stages.</p>
         <table class="table table-sm">
             <thead>
-                <tr>
-                    <th>Version</th>
-                    <th>Accuracy</th>
-                    <th>Stage</th>
-                    <th>Action</th>
-                </tr>
+                <tr><th>Version</th><th>Accuracy</th><th>Stage</th><th>Action</th></tr>
             </thead>
             <tbody>
-                {% if model_versions %}
-                    {% for m in model_versions %}
-                    <tr>
-                        <td>{{ m.version }}</td>
-                        <td>{{ m.accuracy }}</td>
-                        <td><span class="badge bg-secondary">{{ m.stage }}</span></td>
-                        <td>
-                            <form action="/promote/{{ m.version }}" method="POST" style="display:inline;">
-                                <button class="btn btn-sm btn-outline-primary">Promote to Prod</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr><td colspan="4" class="text-center text-muted">No models registered yet.</td></tr>
-                {% endif %}
+                {% for m in model_versions %}
+                <tr>
+                    <td>{{ m.version }}</td><td>{{ m.accuracy }}</td>
+                    <td><span class="badge {% if m.stage == 'Production' %}bg-success{% else %}bg-secondary{% endif %}">{{ m.stage }}</span></td>
+                    <td>
+                        <form action="/promote/{{ m.version }}" method="POST" style="display:inline;">
+                            <button class="btn btn-sm btn-outline-primary">Promote to Prod</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
 
-    <h3>Training Terminal</h3>
-    <div id="log-terminal" class="terminal">No logs yet. Click 'Retrain' to start.</div>
+    <div id="terminal-section" style="display: none;">
+        <h3>Training Terminal</h3>
+        <div id="log-terminal" class="terminal">Initializing...</div>
+    </div>
 </div>
 
 <script>
-    // 1. Show status bar when form is submitted
-    document.querySelector('form[action="/trigger-train"]').onsubmit = function() {
-        document.getElementById('training-status').style.display = 'block';
-    };
-
-    // 2. Poll /logs endpoint every 2 seconds
     function fetchLogs() {
         fetch('/logs')
             .then(response => response.text())
             .then(data => {
                 const terminal = document.getElementById('log-terminal');
+                const section = document.getElementById('terminal-section');
                 
-                // Only update and scroll if there is new content
-                if (data.trim() !== "" && data !== terminal.innerText) {
-                    terminal.innerText = data;
-                    terminal.scrollTop = terminal.scrollHeight; // Auto-scroll
+                // Show terminal if logs have content beyond the default "Initializing"
+                if (data.trim() !== "" && !data.includes("Initializing logs...")) {
+                    section.style.display = 'block';
+                    if (data !== terminal.innerText) {
+                        terminal.innerText = data;
+                        terminal.scrollTop = terminal.scrollHeight;
+                    }
                 }
             })
             .catch(err => console.error("Log fetch error:", err));
     }
 
-    // Start polling
+    // Poll logs every 2 seconds
     setInterval(fetchLogs, 2000);
-    
-    // Initial fetch on load
-    window.onload = fetchLogs;
+    fetchLogs(); // Initial check
 </script>
-
 </body>
 </html>

@@ -11,7 +11,7 @@ import mlflow.sklearn
 from google.cloud import storage
 
 # --- PERSISTENT TRACKING ---
-TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "sqlite:////tmp/mlflow_persistent.db")
+TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "sqlite:////app/data/mlflow.db")
 BUCKET_NAME = os.getenv("GCP_BUCKET_NAME", "housing-data-for-testing")
 
 def get_gcs_resource():
