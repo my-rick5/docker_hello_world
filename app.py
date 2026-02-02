@@ -10,7 +10,7 @@ from mlflow.tracking import MlflowClient
 
 # --- PERSISTENT TRACKING ---
 # Using /tmp ensures we avoid the PVC lock but share data between processes
-TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "sqlite:////app/data/mlflow.db")
+TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "sqlite:////var/lib/mlflow/mlflow.db")
 mlflow.set_tracking_uri(TRACKING_URI)
 
 app = Flask(__name__)
