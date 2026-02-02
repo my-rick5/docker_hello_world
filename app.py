@@ -71,27 +71,26 @@ def dashboard():
 
 @app.route('/predict')
 def predict():
-    """Load the current 'Production' model and return a price estimate."""
-    sqft = request.args.get('sqft')
-    if not sqft:
-        return "Please provide 'sqft' parameter. Example: /predict?sqft=1500", 400
-    
     try:
-        model_uri = "models:/HousingPriceModel/Production"
-        model = mlflow.sklearn.load_model(model_uri)
-        prediction = model.predict([[float(sqft)]])[0]
+        # 1. Load the Production model
+        model_name = "HousingPriceModel"
+        model = mlflow.sklearn.load_model(f"models:/{model_name}/Production")
+
+        # 2. Get the sqft from the button/URL
+        sqft = float(request.args.get('sqft', 1500))
         
-        return f"""
-        <div style="font-family: sans-serif; padding: 40px; text-align: center;">
-            <h2 style="color: #00a86b;">🏠 Housing Estimate</h2>
-            <p style="font-size: 24px;">For <b>{sqft}</b> sqft, the estimated value is:</p>
-            <h1 style="font-size: 48px; color: #333;">${prediction:,.2f}</h1>
-            <br>
-            <a href="/" style="color: #666; text-decoration: none;">&larr; Back to Dashboard</a>
-        </div>
-        """
+        # 3. MATCHING FIX: We updated train.py to only use 1 feature (sqft).
+        # So we send a 2D array with just one column.
+        import numpy as np
+        features = np.array([[sqft]]) 
+        
+        prediction = model.predict(features)
+        
+        # Use a nice return string or a redirect back with a message
+        return f"<h3>🏠 Prediction Result</h3><p>For {sqft} sqft, predicted price is: <b>${prediction[0]:,.2f}</b></p><a href='/dashboard'>Back to Dashboard</a>"
+
     except Exception as e:
-        return f"Prediction Error: {e}<br><i>Note: Make sure a version is promoted to 'Production'.</i>", 500
+        return f"<b>Prediction Error:</b> {str(e)}<br>Note: If you just updated train.py, make sure to Retrain and promote Version 2!"
 
 @app.route('/trigger-train', methods=['POST'])
 def trigger_train():
