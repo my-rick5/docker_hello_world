@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: hello-world-app
-        image: gcr.io/dockerhelloworld-485819/hello-world-app:v20  # Update to v16 after code change
+        image: gcr.io/dockerhelloworld-485819/hello-world-app:v22 # Update to v16 after code change
         ports:
         - containerPort: 8080
         env:

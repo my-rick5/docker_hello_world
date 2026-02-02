@@ -1,69 +1,79 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Collective Memory</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collective Memory - Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <style>
-        body { font-family: sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .btn-delete { color: #e74c3c; cursor: pointer; background: none; border: none; font-weight: bold; padding: 0; }
-        .btn-download { color: #27ae60; text-decoration: none; font-weight: bold; margin-right: 15px; }
-        .btn-download:hover { text-decoration: underline; }
-        .status-box { margin-top: 20px; padding: 15px; border-radius: 5px; display: none; }
-        .train-section { background: #e8f4fd; padding: 20px; border-radius: 8px; border: 1px solid #3498db; margin-top: 30px; }
-        
-        .registry-section { background: #fffcf0; padding: 20px; border-radius: 8px; border: 1px solid #f1c40f; margin-top: 30px; }
-        .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; text-transform: uppercase; border: 1px solid #ccc; }
-        .badge-prod { background: #27ae60; color: white; border-color: #1e8449; }
-        .btn-promote { background: #f1c40f; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold; }
-        .btn-promote:hover { background: #d4ac0d; }
+        body { background-color: #f8f9fa; padding: 20px; }
+        .card { margin-bottom: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .terminal {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            font-family: 'Courier New', Courier, monospace;
+            border-radius: 5px;
+            height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .status-bar { padding: 10px; border-radius: 5px; margin-top: 10px; font-weight: bold; }
+        .btn-retrain { background-color: #00a86b; color: white; border: none; }
+        .btn-retrain:hover { background-color: #008f5d; color: white; }
     </style>
 </head>
 <body>
-    <a href="/" style="text-decoration: none;">← Back to Trainer</a>
-    <h1>Cloud Data Archive</h1>
+
+<div class="container">
+    <h1 class="mb-4"># Cloud Data Archive</h1>
     <p>These files are stored in GCS and used for the next training cycle.</p>
 
-    <table>
-        <thead>
-            <tr>
-                <th>File Name</th>
-                <th>Size</th>
-                <th>Last Modified</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for file in files %}
-            <tr>
-                <td>{{ file.name }}</td>
-                <td>{{ (file.size|int / 1024) | round(2) }} KB</td>
-                <td>{{ file.time }}</td>
-                <td>
-                    <a href="{{ url_for('download_file', filename=file.name) }}" class="btn-download">Download</a>
-                    <form action="/delete/{{ file.name }}" method="post" style="display:inline;">
-                        <button type="submit" class="btn-delete" onclick="return confirm('Delete this file from GCS?')">Delete</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <div class="train-section">
-        <h3>Model Intelligence</h3>
-        <p>Trigger a new training run using all files listed above.</p>
-        <button id="trainBtn" onclick="triggerTraining()" style="background: #27ae60; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer;">
-            🚀 Retrain Model on All Cloud Data
-        </button>
-        <div id="trainStatus" class="status-box"></div>
+    <div class="card p-3">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>File Name</th>
+                    <th>Size</th>
+                    <th>Last Modified</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for file in files %}
+                <tr>
+                    <td>{{ file.name }}</td>
+                    <td>{{ file.size }}</td>
+                    <td>{{ file.time }}</td>
+                    <td>
+                        <a href="/download/{{ file.name }}" class="text-success text-decoration-none fw-bold">Download</a>
+                        <span class="text-danger ms-2" style="cursor:pointer;">Delete</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
-    <div class="registry-section">
+    <div class="card p-4" style="border: 2px solid #add8e6;">
+        <h3>Model Intelligence</h3>
+        <p>Trigger a new training run using all files listed above.</p>
+        
+        <form action="/trigger-train" method="POST">
+            <button type="submit" class="btn btn-retrain">
+                🚀 Retrain Model on All Cloud Data
+            </button>
+        </form>
+
+        <div id="training-status" class="status-bar bg-info-subtle text-info-emphasis mt-3" style="display:none;">
+            Training started... (Logs updating in real-time)
+        </div>
+    </div>
+
+    <div class="card p-4" style="border: 2px solid #fff3cd;">
         <h3>Model Registry (MLflow)</h3>
         <p>Manage model lifecycle versions and deployment stages.</p>
-        <table>
+        <table class="table table-sm">
             <thead>
                 <tr>
                     <th>Version</th>
@@ -76,76 +86,55 @@
                 {% if model_versions %}
                     {% for m in model_versions %}
                     <tr>
-                        <td><strong>v{{ m.version }}</strong></td>
+                        <td>{{ m.version }}</td>
                         <td>{{ m.accuracy }}</td>
+                        <td><span class="badge bg-secondary">{{ m.stage }}</span></td>
                         <td>
-                            <span class="badge {{ 'badge-prod' if m.stage == 'Production' else '' }}">
-                                {{ m.stage }}
-                            </span>
-                        </td>
-                        <td>
-                            {% if m.stage != "Production" %}
-                                <button class="btn-promote" onclick="promoteToProd('{{ m.version }}')">🚀 Promote to Production</button>
-                            {% else %}
-                                <span style="color: #27ae60; font-weight: bold;">● Active</span>
-                            {% endif %}
+                            <form action="/promote/{{ m.version }}" method="POST" style="display:inline;">
+                                <button class="btn btn-sm btn-outline-primary">Promote to Prod</button>
+                            </form>
                         </td>
                     </tr>
                     {% endfor %}
                 {% else %}
-                    <tr><td colspan="4" style="text-align: center;">No models registered yet.</td></tr>
+                    <tr><td colspan="4" class="text-center text-muted">No models registered yet.</td></tr>
                 {% endif %}
             </tbody>
         </table>
     </div>
 
-    <script>
-        function triggerTraining() {
-            const btn = document.getElementById('trainBtn');
-            const status = document.getElementById('trainStatus');
-            btn.disabled = true;
-            status.style.display = 'block';
-            status.style.background = '#d1ecf1';
-            status.innerText = "Training started... (Refreshing in 5s)";
-            fetch('/trigger-train', { method: 'POST' })
-                .then(res => res.json())
-                .then(() => {
-                    status.style.background = '#d4edda';
-                    status.innerText = "Success! Reloading...";
-                    setTimeout(() => location.reload(), 5000);
-                });
-        }
+    <h3>Training Terminal</h3>
+    <div id="log-terminal" class="terminal">No logs yet. Click 'Retrain' to start.</div>
+</div>
 
-        function promoteToProd(version) {
-            if(!confirm("Are you sure you want to promote v" + version + " to Production?")) return;
-            fetch('/promote/' + version, { method: 'POST' })
-                .then(res => res.json())
-                .then(data => {
-                    alert(data.message);
-                    location.reload();
-                });
-        }
-    </script>
-    <div class="form-section">
-        <h3>Training Terminal</h3>
-        <pre id="log-window" style="background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 5px; height: 200px; overflow-y: scroll; font-family: monospace; font-size: 12px;">
-            Loading logs...
-        </pre>
-    </div>
+<script>
+    // 1. Show status bar when form is submitted
+    document.querySelector('form[action="/trigger-train"]').onsubmit = function() {
+        document.getElementById('training-status').style.display = 'block';
+    };
 
-    <script>
-        function fetchLogs() {
-            fetch('/logs')
-                .then(response => response.text())
-                .then(data => {
-                    const logWindow = document.getElementById('log-window');
-                    logWindow.textContent = data;
-                    logWindow.scrollTop = logWindow.scrollHeight; // Auto-scroll to bottom
-                });
-        }
-        // Refresh logs every 3 seconds
-        setInterval(fetchLogs, 3000);
-        fetchLogs(); // Initial load
-    </script>
+    // 2. Poll /logs endpoint every 2 seconds
+    function fetchLogs() {
+        fetch('/logs')
+            .then(response => response.text())
+            .then(data => {
+                const terminal = document.getElementById('log-terminal');
+                
+                // Only update and scroll if there is new content
+                if (data.trim() !== "" && data !== terminal.innerText) {
+                    terminal.innerText = data;
+                    terminal.scrollTop = terminal.scrollHeight; // Auto-scroll
+                }
+            })
+            .catch(err => console.error("Log fetch error:", err));
+    }
+
+    // Start polling
+    setInterval(fetchLogs, 2000);
+    
+    // Initial fetch on load
+    window.onload = fetchLogs;
+</script>
+
 </body>
 </html>

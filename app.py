@@ -2,7 +2,7 @@ import os
 import io
 import subprocess
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, send_file
+from flask import Flask, render_template, request, redirect, url_for, send_file, jsonify
 from google.cloud import storage
 import mlflow
 import mlflow.sklearn
@@ -12,9 +12,13 @@ app = Flask(__name__)
 
 # --- CONFIGURATION ---
 BUCKET_NAME = os.getenv("GCP_BUCKET_NAME", "housing-data-for-testing")
+# Use the internal /app path for the log file
+LOG_FILE_PATH = "/app/training.log"
+
+# ENVIRONMENT AWARE MLFLOW:
+# Checks for MLFLOW_TRACKING_URI env var (memory), falls back to sqlite file
 DB_PATH = "/app/data/mlflow.db"
-LOG_FILE_PATH = "/app/data/training.log"
-TRACKING_URI = f"sqlite:///{DB_PATH}"
+TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", f"sqlite:///{DB_PATH}")
 
 def get_gcs_resource():
     """Access GCS using the mounted Kubernetes secret."""
@@ -24,16 +28,18 @@ def get_gcs_resource():
     return client, bucket
 
 def get_model_history():
-    """Fetch model versions from the persistent MLflow database."""
+    """Fetch model versions from the tracking database."""
     try:
         client = MlflowClient(tracking_uri=TRACKING_URI)
         versions = client.search_model_versions("name='HousingPriceModel'")
         
         history = []
         for v in versions:
-            # Try to get accuracy from the original run
-            run = client.get_run(v.run_id)
-            acc = run.data.metrics.get("accuracy", "N/A")
+            try:
+                run = client.get_run(v.run_id)
+                acc = run.data.metrics.get("accuracy", "N/A")
+            except:
+                acc = "N/A"
             
             history.append({
                 "version": v.version,
@@ -56,13 +62,11 @@ def dashboard():
         
         files = []
         for blob in blobs:
-            # STRICT FILTER: Hide all MLflow system noise
             if blob.name.startswith('mlflow-artifacts/') or "mlruns" in blob.name:
                 continue
             
-            # Only show your curated data and exports
             if any(blob.name.startswith(p) for p in ['data/', 'uploads/', 'models/']):
-                if blob.name.endswith('/'): continue # Skip folder names
+                if blob.name.endswith('/'): continue
                 
                 files.append({
                     'name': blob.name,
@@ -76,27 +80,43 @@ def dashboard():
 
 @app.route('/trigger-train', methods=['POST'])
 def trigger_train():
-    """Run train.py in background and pipe output to the PVC log file."""
+    """Run train.py in background and pipe output to the log file."""
     try:
-        with open(LOG_FILE_PATH, "a") as log_file:
-            log_file.write(f"\n\n--- NEW SESSION: {datetime.now()} ---\n")
-            # Using -u for unbuffered output so logs stream in real-time
-            subprocess.Popen(["python3", "-u", "train.py"], stdout=log_file, stderr=log_file)
+        # Create/Clear log file
+        with open(LOG_FILE_PATH, "w") as log_file:
+            log_file.write(f"--- NEW TRAINING SESSION: {datetime.now()} ---\n")
+            log_file.flush()
+
+        # Open in append mode for the subprocess
+        log_f = open(LOG_FILE_PATH, "a")
+        
+        # Pass the current environment (including the TRACKING_URI) to the child process
+        env = os.environ.copy()
+        env["MLFLOW_TRACKING_URI"] = TRACKING_URI
+        
+        # Launch train.py
+        subprocess.Popen(
+            ["python3", "-u", "/app/train.py"], 
+            stdout=log_f, 
+            stderr=log_f,
+            env=env
+        )
+        
         return redirect(url_for('dashboard'))
     except Exception as e:
         return f"Training failed to start: {e}", 500
 
 @app.route('/logs')
 def get_logs():
-    """Read logs from the PVC for the frontend terminal."""
+    """Read logs for the frontend terminal component."""
     if os.path.exists(LOG_FILE_PATH):
         with open(LOG_FILE_PATH, "r") as f:
-            return "".join(f.readlines()[-100:]) # Return last 100 lines
-    return "No logs yet. Click 'Retrain' to start."
+            lines = f.readlines()
+            return "".join(lines[-100:])
+    return "Initializing logs..."
 
 @app.route('/promote/<int:version>', methods=['POST'])
 def promote_model(version):
-    """Promote a specific version and archive old production models."""
     try:
         client = MlflowClient(tracking_uri=TRACKING_URI)
         client.transition_model_version_stage(
@@ -111,33 +131,24 @@ def promote_model(version):
 
 @app.route('/predict')
 def predict():
-    """Load the current 'Production' model dynamically."""
     sqft = request.args.get('sqft', 0)
     try:
         mlflow.set_tracking_uri(TRACKING_URI)
-        # URI format: models:/<name>/<stage>
         model = mlflow.sklearn.load_model("models:/HousingPriceModel/Production")
         price = model.predict([[float(sqft)]])[0]
         return f"<h1>Estimate: ${price:,.2f}</h1><a href='/'>Back</a>"
     except Exception as e:
-        return f"Prediction Error (Is a model promoted to Production?): {e}", 500
+        return f"Prediction Error: {e}", 500
 
 @app.route('/download/<path:filename>')
-def download_file(filename):  # <--- This MUST be named 'download_file'
+def download_file(filename):
     try:
         _, bucket = get_gcs_resource()
         blob = bucket.blob(filename)
-        
-        import io
         file_data = io.BytesIO()
         blob.download_to_file(file_data)
         file_data.seek(0)
-        
-        return send_file(
-            file_data,
-            as_attachment=True,
-            download_name=filename.split('/')[-1]
-        )
+        return send_file(file_data, as_attachment=True, download_name=filename.split('/')[-1])
     except Exception as e:
         return f"Download failed: {e}", 500
         
