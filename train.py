@@ -42,8 +42,8 @@ def train_model():
     data_bytes = blob.download_as_bytes()
     df = pd.read_csv(io.BytesIO(data_bytes))
 
-# Force column names to lowercase to avoid "Price" vs "price" issues
-df.columns = [c.lower().strip() for c in df.columns]
+    # Force column names to lowercase to avoid "Price" vs "price" issues
+    df.columns = [c.lower().strip() for c in df.columns]
 
     # Drop ID if it exists so it's never used as a feature
     if 'id' in df.columns:
