@@ -27,25 +27,25 @@ def get_gcs_resource():
     return client, bucket
 
 def get_model_history():
-    """Fetch model versions from the tracking database."""
     try:
         client = MlflowClient(tracking_uri=TRACKING_URI)
         versions = client.search_model_versions("name='HousingPriceModel'")
         history = []
         for v in versions:
-            try:
-                run = client.get_run(v.run_id)
-                acc = run.data.metrics.get("accuracy", "N/A")
-            except:
-                acc = "N/A"
+            run = client.get_run(v.run_id)
+            # Pull the run name or ID to show they are unique
+            run_name = run.info.run_name or v.run_id[:8] 
+            
             history.append({
                 "version": v.version,
                 "stage": v.current_stage,
-                "accuracy": f"{acc:.4f}" if isinstance(acc, float) else acc,
-                "created": datetime.fromtimestamp(v.creation_timestamp/1000).strftime('%Y-%m-%d %H:%M')
+                "accuracy": f"{run.data.metrics.get('accuracy', 0):.4f}",
+                "run_id": run_name,
+                "created": datetime.fromtimestamp(v.creation_timestamp/1000).strftime('%H:%M:%S')
             })
         return sorted(history, key=lambda x: int(x['version']), reverse=True)
-    except Exception:
+    except Exception as e:
+        print(f"History Error: {e}")
         return []
 
 # --- ROUTES ---
@@ -87,7 +87,17 @@ def predict():
         prediction = model.predict(features)
         
         # Use a nice return string or a redirect back with a message
-        return f"<h3>🏠 Prediction Result</h3><p>For {sqft} sqft, predicted price is: <b>${prediction[0]:,.2f}</b></p><a href='/dashboard'>Back to Dashboard</a>"
+        return f"""
+            <div style="font-family: sans-serif; padding: 40px; text-align: center;">
+                <h1 style="color: #00a86b;">🏠 Prediction Result</h1>
+                <div style="background: #f4f4f4; padding: 20px; border-radius: 10px; display: inline-block;">
+                    <p style="font-size: 1.2rem;">For <strong>{sqft:,}</strong> sqft</p>
+                    <h2 style="margin: 0;">Predicted Price: <span style="color: #2e7d32;">${prediction[0]:,.2f}</span></h2>
+                </div>
+                <br><br>
+                <a href="/dashboard" style="text-decoration: none; color: #007bff; font-weight: bold;">← Back to Dashboard</a>
+            </div>
+        """
 
     except Exception as e:
         return f"<b>Prediction Error:</b> {str(e)}<br>Note: If you just updated train.py, make sure to Retrain and promote Version 2!"
