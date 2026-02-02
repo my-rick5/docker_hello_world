@@ -10,7 +10,7 @@ import mlflow
 import mlflow.sklearn
 from google.cloud import storage
 
-# --- CONFIGURATION ---
+# --- PERSISTENT TRACKING ---
 TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "sqlite:////tmp/mlflow_persistent.db")
 BUCKET_NAME = os.getenv("GCP_BUCKET_NAME", "housing-data-for-testing")
 
@@ -60,7 +60,11 @@ def train_model():
         accuracy = 1.0 / (1.0 + mse) 
         
         mlflow.log_metric("accuracy", accuracy)
-        mlflow.sklearn.log_model(model, "model", registered_model_name="HousingPriceModel")
+        mlflow.sklearn.log_model(
+           sk_model=model, 
+           artifact_path="model", 
+           registered_model_name="HousingPriceModel"
+        )
         
         print(f"✅ Training complete. Accuracy: {accuracy:.4f}", flush=True)
         print("✅ Training complete and model registered!", flush=True)

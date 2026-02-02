@@ -8,8 +8,8 @@ import mlflow
 import mlflow.sklearn
 from mlflow.tracking import MlflowClient
 
-# --- FORCE IN-MEMORY TRACKING ---
-# This prevents the "unable to open database file" error on startup
+# --- PERSISTENT TRACKING ---
+# Using /tmp ensures we avoid the PVC lock but share data between processes
 TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "sqlite:////tmp/mlflow_persistent.db")
 mlflow.set_tracking_uri(TRACKING_URI)
 
@@ -48,6 +48,8 @@ def get_model_history():
     except Exception:
         return []
 
+# --- ROUTES ---
+
 @app.route('/')
 @app.route('/dashboard')
 def dashboard():
@@ -67,25 +69,45 @@ def dashboard():
     except Exception as e:
         return f"Dashboard Error: {e}", 500
 
+@app.route('/predict')
+def predict():
+    """Load the current 'Production' model and return a price estimate."""
+    sqft = request.args.get('sqft')
+    if not sqft:
+        return "Please provide 'sqft' parameter. Example: /predict?sqft=1500", 400
+    
+    try:
+        model_uri = "models:/HousingPriceModel/Production"
+        model = mlflow.sklearn.load_model(model_uri)
+        prediction = model.predict([[float(sqft)]])[0]
+        
+        return f"""
+        <div style="font-family: sans-serif; padding: 40px; text-align: center;">
+            <h2 style="color: #00a86b;">🏠 Housing Estimate</h2>
+            <p style="font-size: 24px;">For <b>{sqft}</b> sqft, the estimated value is:</p>
+            <h1 style="font-size: 48px; color: #333;">${prediction:,.2f}</h1>
+            <br>
+            <a href="/" style="color: #666; text-decoration: none;">&larr; Back to Dashboard</a>
+        </div>
+        """
+    except Exception as e:
+        return f"Prediction Error: {e}<br><i>Note: Make sure a version is promoted to 'Production'.</i>", 500
+
 @app.route('/trigger-train', methods=['POST'])
 def trigger_train():
     """Run train.py in background and pipe output to log file."""
     try:
-        # 1. Clear/Create the log file
         with open(LOG_FILE_PATH, "w") as f:
             f.write(f"--- NEW TRAINING SESSION: {datetime.now()} ---\n")
             f.flush()
 
-        # 2. Start the process
         log_f = open(LOG_FILE_PATH, "a")
         env = os.environ.copy()
         env["MLFLOW_TRACKING_URI"] = TRACKING_URI
         
         subprocess.Popen(
             ["python3", "-u", "/app/train.py"], 
-            stdout=log_f, 
-            stderr=log_f,
-            env=env
+            stdout=log_f, stderr=log_f, env=env
         )
         return redirect(url_for('dashboard'))
     except Exception as e:
@@ -93,7 +115,6 @@ def trigger_train():
 
 @app.route('/logs')
 def get_logs():
-    """Read logs for the frontend terminal."""
     if os.path.exists(LOG_FILE_PATH):
         with open(LOG_FILE_PATH, "r") as f:
             return f.read()
