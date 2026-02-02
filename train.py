@@ -42,14 +42,21 @@ def train_model():
     data_bytes = blob.download_as_bytes()
     df = pd.read_csv(io.BytesIO(data_bytes))
 
+# Force column names to lowercase to avoid "Price" vs "price" issues
+df.columns = [c.lower().strip() for c in df.columns]
+
+    # Drop ID if it exists so it's never used as a feature
+    if 'id' in df.columns:
+        df = df.drop(columns=['id'])
+    
+    # Define features and target
     if 'sqft' in df.columns and 'price' in df.columns:
         X = df[['sqft']]
         y = df['price']
     else:
+        # Fallback: Price is the last column, everything else is a feature
         X = df.iloc[:, :-1]
         y = df.iloc[:, -1]
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     with mlflow.start_run(run_name="GKE_Background_Train"):
         model = LinearRegression()
