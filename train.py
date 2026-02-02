@@ -14,11 +14,13 @@ from google.cloud import storage
 TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "sqlite:////var/lib/mlflow/mlflow.db")
 BUCKET_NAME = os.getenv("GCP_BUCKET_NAME", "housing-data-for-testing")
 
+
 def get_gcs_resource():
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/var/secrets/google/key.json"
     client = storage.Client()
     bucket = client.bucket(BUCKET_NAME)
     return client, bucket
+
 
 def train_model():
     mlflow.set_tracking_uri(TRACKING_URI)
@@ -58,6 +60,9 @@ def train_model():
         X = df.iloc[:, :-1]
         y = df.iloc[:, -1]
 
+    # --- MISSING STEP ADDED HERE ---
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
     with mlflow.start_run(run_name="GKE_Background_Train"):
         model = LinearRegression()
         model.fit(X_train, y_train)
@@ -75,6 +80,7 @@ def train_model():
         
         print(f"✅ Training complete. Accuracy: {accuracy:.4f}", flush=True)
         print("✅ Training complete and model registered!", flush=True)
+
 
 if __name__ == "__main__":
     try:
