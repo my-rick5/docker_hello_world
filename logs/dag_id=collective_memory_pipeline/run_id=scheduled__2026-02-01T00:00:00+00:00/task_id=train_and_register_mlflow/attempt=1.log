@@ -1,0 +1,178 @@
+[2026-02-02T23:02:10.468+0000] {taskinstance.py:1157} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: collective_memory_pipeline.train_and_register_mlflow scheduled__2026-02-01T00:00:00+00:00 [queued]>
+[2026-02-02T23:02:10.480+0000] {taskinstance.py:1157} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: collective_memory_pipeline.train_and_register_mlflow scheduled__2026-02-01T00:00:00+00:00 [queued]>
+[2026-02-02T23:02:10.481+0000] {taskinstance.py:1359} INFO - Starting attempt 1 of 2
+[2026-02-02T23:02:10.490+0000] {taskinstance.py:1380} INFO - Executing <Task(PythonOperator): train_and_register_mlflow> on 2026-02-01 00:00:00+00:00
+[2026-02-02T23:02:10.504+0000] {standard_task_runner.py:57} INFO - Started process 328 to run task
+[2026-02-02T23:02:10.512+0000] {standard_task_runner.py:84} INFO - Running: ['***', 'tasks', 'run', 'collective_memory_pipeline', 'train_and_register_mlflow', 'scheduled__2026-02-01T00:00:00+00:00', '--job-id', '3', '--raw', '--subdir', 'DAGS_FOLDER/ml_pipeline_dag.py', '--cfg-path', '/tmp/tmphmy6su6d']
+[2026-02-02T23:02:10.519+0000] {standard_task_runner.py:85} INFO - Job 3: Subtask train_and_register_mlflow
+[2026-02-02T23:02:10.609+0000] {task_command.py:415} INFO - Running <TaskInstance: collective_memory_pipeline.train_and_register_mlflow scheduled__2026-02-01T00:00:00+00:00 [running]> on host 3668a68f5920
+[2026-02-02T23:02:10.744+0000] {taskinstance.py:1660} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='zachary' AIRFLOW_CTX_DAG_ID='collective_memory_pipeline' AIRFLOW_CTX_TASK_ID='train_and_register_mlflow' AIRFLOW_CTX_EXECUTION_DATE='2026-02-01T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2026-02-01T00:00:00+00:00'
+[2026-02-02T23:02:10.835+0000] {connectionpool.py:823} WARNING - Retrying (JitteredRetry(total=4, connect=4, read=5, redirect=5, status=5)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0xffff7e621a60>: Failed to establish a new connection: [Errno -2] Name or service not known')': /api/2.0/mlflow/experiments/get-by-name?experiment_name=Housing_Price_Analysis
+[2026-02-02T23:02:14.845+0000] {connectionpool.py:823} WARNING - Retrying (JitteredRetry(total=3, connect=3, read=5, redirect=5, status=5)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0xffff7e7af2b0>: Failed to establish a new connection: [Errno -2] Name or service not known')': /api/2.0/mlflow/experiments/get-by-name?experiment_name=Housing_Price_Analysis
+[2026-02-02T23:02:22.932+0000] {connectionpool.py:823} WARNING - Retrying (JitteredRetry(total=2, connect=2, read=5, redirect=5, status=5)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0xffff7e7784c0>: Failed to establish a new connection: [Errno -2] Name or service not known')': /api/2.0/mlflow/experiments/get-by-name?experiment_name=Housing_Price_Analysis
+[2026-02-02T23:02:39.013+0000] {connectionpool.py:823} WARNING - Retrying (JitteredRetry(total=1, connect=1, read=5, redirect=5, status=5)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0xffff7e778790>: Failed to establish a new connection: [Errno -2] Name or service not known')': /api/2.0/mlflow/experiments/get-by-name?experiment_name=Housing_Price_Analysis
+[2026-02-02T23:03:11.045+0000] {connectionpool.py:823} WARNING - Retrying (JitteredRetry(total=0, connect=0, read=5, redirect=5, status=5)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0xffff7e778430>: Failed to establish a new connection: [Errno -2] Name or service not known')': /api/2.0/mlflow/experiments/get-by-name?experiment_name=Housing_Price_Analysis
+[2026-02-02T23:03:11.076+0000] {taskinstance.py:1935} ERROR - Task failed with exception
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.8/site-packages/urllib3/connection.py", line 174, in _new_conn
+    conn = connection.create_connection(
+  File "/home/airflow/.local/lib/python3.8/site-packages/urllib3/util/connection.py", line 72, in create_connection
+    for res in socket.getaddrinfo(host, port, family, socket.SOCK_STREAM):
+  File "/usr/local/lib/python3.8/socket.py", line 918, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+socket.gaierror: [Errno -2] Name or service not known
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.8/site-packages/urllib3/connectionpool.py", line 714, in urlopen
+    httplib_response = self._make_request(
+  File "/home/airflow/.local/lib/python3.8/site-packages/urllib3/connectionpool.py", line 415, in _make_request
+    conn.request(method, url, **httplib_request_kw)
+  File "/home/airflow/.local/lib/python3.8/site-packages/urllib3/connection.py", line 244, in request
+    super(HTTPConnection, self).request(method, url, body=body, headers=headers)
+  File "/usr/local/lib/python3.8/http/client.py", line 1256, in request
+    self._send_request(method, url, body, headers, encode_chunked)
+  File "/usr/local/lib/python3.8/http/client.py", line 1302, in _send_request
+    self.endheaders(body, encode_chunked=encode_chunked)
+  File "/usr/local/lib/python3.8/http/client.py", line 1251, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+  File "/usr/local/lib/python3.8/http/client.py", line 1011, in _send_output
+    self.send(msg)
+  File "/usr/local/lib/python3.8/http/client.py", line 951, in send
+    self.connect()
+  File "/home/airflow/.local/lib/python3.8/site-packages/urllib3/connection.py", line 205, in connect
+    conn = self._new_conn()
+  File "/home/airflow/.local/lib/python3.8/site-packages/urllib3/connection.py", line 186, in _new_conn
+    raise NewConnectionError(
+urllib3.exceptions.NewConnectionError: <urllib3.connection.HTTPConnection object at 0xffff7e778df0>: Failed to establish a new connection: [Errno -2] Name or service not known
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.8/site-packages/requests/adapters.py", line 486, in send
+    resp = conn.urlopen(
+  File "/home/airflow/.local/lib/python3.8/site-packages/urllib3/connectionpool.py", line 826, in urlopen
+    return self.urlopen(
+  File "/home/airflow/.local/lib/python3.8/site-packages/urllib3/connectionpool.py", line 826, in urlopen
+    return self.urlopen(
+  File "/home/airflow/.local/lib/python3.8/site-packages/urllib3/connectionpool.py", line 826, in urlopen
+    return self.urlopen(
+  [Previous line repeated 2 more times]
+  File "/home/airflow/.local/lib/python3.8/site-packages/urllib3/connectionpool.py", line 798, in urlopen
+    retries = retries.increment(
+  File "/home/airflow/.local/lib/python3.8/site-packages/urllib3/util/retry.py", line 592, in increment
+    raise MaxRetryError(_pool, url, error or ResponseError(cause))
+urllib3.exceptions.MaxRetryError: HTTPConnectionPool(host='mlflow', port=5000): Max retries exceeded with url: /api/2.0/mlflow/experiments/get-by-name?experiment_name=Housing_Price_Analysis (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0xffff7e778df0>: Failed to establish a new connection: [Errno -2] Name or service not known'))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/utils/rest_utils.py", line 189, in http_request
+    return _get_http_response_with_retries(
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/utils/request_utils.py", line 237, in _get_http_response_with_retries
+    return session.request(method, url, allow_redirects=allow_redirects, **kwargs)
+  File "/home/airflow/.local/lib/python3.8/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/home/airflow/.local/lib/python3.8/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/home/airflow/.local/lib/python3.8/site-packages/requests/adapters.py", line 519, in send
+    raise ConnectionError(e, request=request)
+requests.exceptions.ConnectionError: HTTPConnectionPool(host='mlflow', port=5000): Max retries exceeded with url: /api/2.0/mlflow/experiments/get-by-name?experiment_name=Housing_Price_Analysis (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0xffff7e778df0>: Failed to establish a new connection: [Errno -2] Name or service not known'))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.8/site-packages/airflow/operators/python.py", line 192, in execute
+    return_value = self.execute_callable()
+  File "/home/airflow/.local/lib/python3.8/site-packages/airflow/operators/python.py", line 209, in execute_callable
+    return self.python_callable(*self.op_args, **self.op_kwargs)
+  File "/opt/airflow/dags/train.py", line 27, in train_model
+    mlflow.set_experiment("Housing_Price_Analysis")
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/tracking/fluent.py", line 145, in set_experiment
+    experiment = client.get_experiment_by_name(experiment_name)
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/tracking/client.py", line 1256, in get_experiment_by_name
+    return self._tracking_client.get_experiment_by_name(name)
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/tracking/_tracking_service/client.py", line 501, in get_experiment_by_name
+    return self.store.get_experiment_by_name(name)
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/store/tracking/rest_store.py", line 519, in get_experiment_by_name
+    response_proto = self._call_endpoint(GetExperimentByName, req_body)
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/store/tracking/rest_store.py", line 82, in _call_endpoint
+    return call_endpoint(self.get_host_creds(), endpoint, method, json_body, response_proto)
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/utils/rest_utils.py", line 365, in call_endpoint
+    response = http_request(**call_kwargs)
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/utils/rest_utils.py", line 212, in http_request
+    raise MlflowException(f"API request to {url} failed with exception {e}")
+mlflow.exceptions.MlflowException: API request to http://mlflow:5000/api/2.0/mlflow/experiments/get-by-name failed with exception HTTPConnectionPool(host='mlflow', port=5000): Max retries exceeded with url: /api/2.0/mlflow/experiments/get-by-name?experiment_name=Housing_Price_Analysis (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0xffff7e778df0>: Failed to establish a new connection: [Errno -2] Name or service not known'))
+[2026-02-02T23:03:11.123+0000] {taskinstance.py:1398} INFO - Marking task as UP_FOR_RETRY. dag_id=collective_memory_pipeline, task_id=train_and_register_mlflow, execution_date=20260201T000000, start_date=20260202T230210, end_date=20260202T230311
+[2026-02-02T23:03:11.144+0000] {standard_task_runner.py:104} ERROR - Failed to execute job 3 for task train_and_register_mlflow (API request to http://mlflow:5000/api/2.0/mlflow/experiments/get-by-name failed with exception HTTPConnectionPool(host='mlflow', port=5000): Max retries exceeded with url: /api/2.0/mlflow/experiments/get-by-name?experiment_name=Housing_Price_Analysis (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0xffff7e778df0>: Failed to establish a new connection: [Errno -2] Name or service not known')); 328)
+[2026-02-02T23:03:11.165+0000] {local_task_job_runner.py:228} INFO - Task exited with return code 1
+[2026-02-02T23:03:11.190+0000] {taskinstance.py:2776} INFO - 0 downstream tasks scheduled from follow-on schedule check
+[2026-02-02T23:42:22.617+0000] {taskinstance.py:1157} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: collective_memory_pipeline.train_and_register_mlflow scheduled__2026-02-01T00:00:00+00:00 [queued]>
+[2026-02-02T23:42:22.622+0000] {taskinstance.py:1157} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: collective_memory_pipeline.train_and_register_mlflow scheduled__2026-02-01T00:00:00+00:00 [queued]>
+[2026-02-02T23:42:22.623+0000] {taskinstance.py:1359} INFO - Starting attempt 1 of 2
+[2026-02-02T23:42:22.631+0000] {taskinstance.py:1380} INFO - Executing <Task(PythonOperator): train_and_register_mlflow> on 2026-02-01 00:00:00+00:00
+[2026-02-02T23:42:22.642+0000] {standard_task_runner.py:57} INFO - Started process 257 to run task
+[2026-02-02T23:42:22.664+0000] {standard_task_runner.py:84} INFO - Running: ['***', 'tasks', 'run', 'collective_memory_pipeline', 'train_and_register_mlflow', 'scheduled__2026-02-01T00:00:00+00:00', '--job-id', '2', '--raw', '--subdir', 'DAGS_FOLDER/ml_pipeline_dag.py', '--cfg-path', '/tmp/tmp_q2l8fem']
+[2026-02-02T23:42:22.670+0000] {standard_task_runner.py:85} INFO - Job 2: Subtask train_and_register_mlflow
+[2026-02-02T23:42:22.728+0000] {task_command.py:415} INFO - Running <TaskInstance: collective_memory_pipeline.train_and_register_mlflow scheduled__2026-02-01T00:00:00+00:00 [running]> on host 08217b9f8ff4
+[2026-02-02T23:42:22.787+0000] {taskinstance.py:1660} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='zachary' AIRFLOW_CTX_DAG_ID='collective_memory_pipeline' AIRFLOW_CTX_TASK_ID='train_and_register_mlflow' AIRFLOW_CTX_EXECUTION_DATE='2026-02-01T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2026-02-01T00:00:00+00:00'
+[2026-02-02T23:42:23.351+0000] {logging_mixin.py:151} INFO - Connecting to GCS bucket: housing-data-for-testing...
+[2026-02-02T23:42:23.824+0000] {logging_mixin.py:151} INFO - Downloading data/test_data.csv...
+[2026-02-02T23:42:24.643+0000] {logging_mixin.py:151} WARNING - 2026/02/02 23:42:24 WARNING mlflow.utils.git_utils: Failed to import Git (the Git executable is probably not on your PATH), so Git SHA is not available. Error: Failed to initialize: Bad git executable.
+The git executable must be specified in one of the following ways:
+    - be included in your $PATH
+    - be set via $GIT_PYTHON_GIT_EXECUTABLE
+    - explicitly set via git.refresh(<full-path-to-git-executable>)
+
+All git commands will error until this is rectified.
+
+This initial message can be silenced or aggravated in the future by setting the
+$GIT_PYTHON_REFRESH environment variable. Use one of the following values:
+    - quiet|q|silence|s|silent|none|n|0: for no message or exception
+    - warn|w|warning|log|l|1: for a warning message (logging level CRITICAL, displayed by default)
+    - error|e|exception|raise|r|2: for a raised exception
+
+Example:
+    export GIT_PYTHON_REFRESH=quiet
+[2026-02-02T23:42:29.546+0000] {logging_mixin.py:151} WARNING - 2026/02/02 23:42:29 WARNING mlflow.models.model: Model logged without a signature and input example. Please set `input_example` parameter when logging the model to auto infer the model signature.
+[2026-02-02T23:42:29.649+0000] {logging_mixin.py:151} WARNING - 2026/02/02 23:42:29 INFO mlflow.tracking._tracking_service.client: 🏃 View run GKE_Background_Train at: http://mlflow:5000/#/experiments/1/runs/a67f8097018942af83d8dc4fb080a9c0.
+[2026-02-02T23:42:29.650+0000] {logging_mixin.py:151} WARNING - 2026/02/02 23:42:29 INFO mlflow.tracking._tracking_service.client: 🧪 View experiment at: http://mlflow:5000/#/experiments/1.
+[2026-02-02T23:42:29.681+0000] {taskinstance.py:1935} ERROR - Task failed with exception
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.8/site-packages/airflow/operators/python.py", line 192, in execute
+    return_value = self.execute_callable()
+  File "/home/airflow/.local/lib/python3.8/site-packages/airflow/operators/python.py", line 209, in execute_callable
+    return self.python_callable(*self.op_args, **self.op_kwargs)
+  File "/opt/airflow/dags/train.py", line 75, in train_model
+    mlflow.sklearn.log_model(
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/sklearn/__init__.py", line 413, in log_model
+    return Model.log(
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/models/model.py", line 744, in log
+    mlflow.tracking.fluent.log_artifacts(local_path, mlflow_model.artifact_path, run_id)
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/tracking/fluent.py", line 1170, in log_artifacts
+    MlflowClient().log_artifacts(run_id, local_dir, artifact_path)
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/tracking/client.py", line 1977, in log_artifacts
+    self._tracking_client.log_artifacts(run_id, local_dir, artifact_path)
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/tracking/_tracking_service/client.py", line 874, in log_artifacts
+    self._get_artifact_repo(run_id).log_artifacts(local_dir, artifact_path)
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/store/artifact/local_artifact_repo.py", line 66, in log_artifacts
+    mkdir(artifact_dir)
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/utils/file_utils.py", line 211, in mkdir
+    raise e
+  File "/home/airflow/.local/lib/python3.8/site-packages/mlflow/utils/file_utils.py", line 208, in mkdir
+    os.makedirs(target, exist_ok=True)
+  File "/usr/local/lib/python3.8/os.py", line 213, in makedirs
+    makedirs(head, exist_ok=exist_ok)
+  File "/usr/local/lib/python3.8/os.py", line 213, in makedirs
+    makedirs(head, exist_ok=exist_ok)
+  File "/usr/local/lib/python3.8/os.py", line 213, in makedirs
+    makedirs(head, exist_ok=exist_ok)
+  [Previous line repeated 2 more times]
+  File "/usr/local/lib/python3.8/os.py", line 223, in makedirs
+    mkdir(name, mode)
+PermissionError: [Errno 13] Permission denied: '/mlflow'
+[2026-02-02T23:42:29.722+0000] {taskinstance.py:1398} INFO - Marking task as UP_FOR_RETRY. dag_id=collective_memory_pipeline, task_id=train_and_register_mlflow, execution_date=20260201T000000, start_date=20260202T234222, end_date=20260202T234229
+[2026-02-02T23:42:29.743+0000] {standard_task_runner.py:104} ERROR - Failed to execute job 2 for task train_and_register_mlflow ([Errno 13] Permission denied: '/mlflow'; 257)
+[2026-02-02T23:42:29.814+0000] {local_task_job_runner.py:228} INFO - Task exited with return code 1
+[2026-02-02T23:42:29.871+0000] {taskinstance.py:2776} INFO - 0 downstream tasks scheduled from follow-on schedule check
